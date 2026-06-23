@@ -222,7 +222,30 @@
     border-radius:50%;animation:sp .7s linear infinite}
   @keyframes sp{to{transform:rotate(360deg)}}
 
-  /* 语言切换：标题行内右对齐 */
+  /* ---------- 账户 / 登录 ---------- */
+  #account-btn{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .modal-mask{position:fixed;inset:0;background:rgba(10,9,7,.7);backdrop-filter:blur(3px);
+    display:none;align-items:center;justify-content:center;z-index:50;padding:20px}
+  .modal-mask.show{display:flex}
+  .modal{width:100%;max-width:380px;background:var(--panel);border:1px solid var(--line);
+    border-radius:16px;padding:24px;box-shadow:0 30px 80px rgba(0,0,0,.6)}
+  .modal h3{font-size:17px;font-weight:800;margin-bottom:6px;color:var(--text)}
+  .modal p.sub{font-size:12.5px;color:var(--text-dim);line-height:1.6;margin-bottom:18px}
+  .modal input[type=email]{width:100%;background:var(--panel-2);border:1px solid var(--line);
+    color:var(--text);border-radius:10px;padding:12px 13px;font-size:14px;font-family:var(--font);
+    margin-bottom:12px;outline:none}
+  .modal input[type=email]:focus{border-color:var(--accent)}
+  .modal .msg{font-size:12.5px;line-height:1.6;margin-top:12px;min-height:1em}
+  .modal .msg.ok{color:var(--accent-2)}
+  .modal .msg.err{color:#ff8f6b}
+  .modal .acct-row{display:flex;align-items:center;justify-content:space-between;
+    background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:12px 13px;margin-bottom:14px}
+  .modal .acct-row .em{font-size:13px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .modal .acct-row .badge2{font-size:11px;color:var(--accent-2);font-weight:700;flex:0 0 auto;margin-left:10px}
+  .modal-close{position:absolute;top:14px;right:16px;background:none;border:none;color:var(--text-dim);
+    font-size:22px;cursor:pointer;line-height:1}
+  .modal-wrap{position:relative}
+
   .pill{background:var(--panel-2);border:1px solid var(--line);
     color:var(--text);font-size:12px;padding:6px 12px;border-radius:20px;cursor:pointer;
     font-weight:600;transition:.12s}
@@ -247,7 +270,7 @@
   <main class="stage" id="stage">
     <div class="leftbar">
       <div class="brand">
-        <h1><span class="dot"></span><span class="title-text" data-i18n="title">复古肌理插画生成器</span><button class="pill" id="lang-toggle">EN</button></h1>
+        <h1><span class="dot"></span><span class="title-text" data-i18n="title">复古肌理插画生成器</span><button class="pill" id="lang-toggle">EN</button><button class="pill" id="account-btn">Sign in</button></h1>
         <p data-i18n="subtitle">照片 → Riso 孔版风格装饰画</p>
       </div>
       <div class="getrow">
@@ -410,6 +433,32 @@
       </div>
     </div>
   </aside>
+</div>
+
+<!-- 登录弹窗 -->
+<div class="modal-mask" id="auth-mask">
+  <div class="modal modal-wrap">
+    <button class="modal-close" id="auth-close" aria-label="close">&times;</button>
+
+    <!-- 未登录：发送魔法链接 -->
+    <div id="auth-signin">
+      <h3 data-i18n2="signin_title">登录 / 注册</h3>
+      <p class="sub" data-i18n2="signin_sub">输入邮箱，我们会发一条登录链接给你。点开即登录，无需密码。</p>
+      <input type="email" id="auth-email" placeholder="you@example.com" autocomplete="email">
+      <button class="btn btn-primary" id="auth-send" style="width:100%" data-i18n2="signin_btn">发送登录链接</button>
+      <div class="msg" id="auth-msg"></div>
+    </div>
+
+    <!-- 已登录：显示状态 + 退出 -->
+    <div id="auth-signedin" style="display:none">
+      <h3 data-i18n2="account_title">我的账户</h3>
+      <div class="acct-row">
+        <span class="em" id="acct-email">—</span>
+        <span class="badge2" id="acct-status">—</span>
+      </div>
+      <button class="btn btn-ghost" id="auth-signout" style="width:100%" data-i18n2="signout_btn">退出登录</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -1143,6 +1192,133 @@ $('lang-toggle').addEventListener('click',()=> setLang(lang==='zh'?'en':'zh'));
 buildPresets();
 applyLang();   // 应用语言 + 构建导出UI + 显示读数
 requestAnimationFrame(fitPreview);   // 布局稳定后测量预览高度
+</script>
+
+<!-- ===== Supabase 登录（邮箱魔法链接） ===== -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function(){
+  "use strict";
+
+  // ╔══════════════════════════════════════════════════════════╗
+  // ║  在这里填你的 Supabase 两个值（anon key 是公开的，可放前端）  ║
+  // ║  Supabase 后台 → Project Settings → API                    ║
+  // ╚══════════════════════════════════════════════════════════╝
+  const SUPABASE_URL = "https://YOUR-PROJECT.supabase.co";       // ← 改成你的 Project URL
+  const SUPABASE_ANON_KEY = "YOUR-ANON-PUBLIC-KEY";              // ← 改成你的 anon public key
+  // ════════════════════════════════════════════════════════════
+
+  const byId = id => document.getElementById(id);
+  const configured = !SUPABASE_URL.includes("YOUR-") && !SUPABASE_ANON_KEY.includes("YOUR-");
+  let sb = null;
+  if (configured && window.supabase) {
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    window.sb = sb;   // 暴露给后续步骤（读授权 / 带 token 调 create-order）使用
+  }
+
+  // 弹窗文案（中英，跟随主界面语言）
+  const I18N2 = {
+    zh:{ signin_title:'登录 / 注册', signin_sub:'输入邮箱，我们会发一条登录链接给你。点开即登录，无需密码。',
+         signin_btn:'发送登录链接', account_title:'我的账户', signout_btn:'退出登录',
+         acct_signin:'登录', sending:'发送中…', sent:'链接已发送，请去邮箱查收（注意垃圾箱）。',
+         invalid_email:'请输入有效邮箱', err:'出错了，请重试',
+         lifetime:'终身解锁', credits_left:'剩 {n} 次', not_configured:'Supabase 未配置（请在代码顶部填 URL 和 anon key）' },
+    en:{ signin_title:'Sign in / Sign up', signin_sub:"Enter your email and we'll send a magic link — click it to sign in, no password needed.",
+         signin_btn:'Send magic link', account_title:'My account', signout_btn:'Sign out',
+         acct_signin:'Sign in', sending:'Sending…', sent:'Link sent! Check your inbox (and spam).',
+         invalid_email:'Please enter a valid email', err:'Something went wrong, try again',
+         lifetime:'Lifetime', credits_left:'{n} left', not_configured:'Supabase not configured (fill URL & anon key at top of script)' },
+  };
+  function alang(){ try{ return localStorage.getItem('ri_lang')==='en' ? 'en':'zh'; }catch(e){ return 'zh'; } }
+  function t2(k,vars){ let s=(I18N2[alang()]||I18N2.zh)[k]||k; if(vars)for(const x in vars)s=s.split('{'+x+'}').join(vars[x]); return s; }
+  function applyAuthLang(){ document.querySelectorAll('[data-i18n2]').forEach(el=>{ el.textContent=t2(el.dataset.i18n2); }); updateAccountBtn(); }
+
+  let session = null, profile = null;
+  const show = (el,on)=>{ el.style.display = on ? '' : 'none'; };
+  const openModal  = ()=>{ applyAuthLang(); renderState(); byId('auth-msg').textContent=''; byId('auth-mask').classList.add('show'); };
+  const closeModal = ()=> byId('auth-mask').classList.remove('show');
+
+  function statusText(){
+    if(!profile) return '';
+    return profile.is_lifetime ? t2('lifetime') : t2('credits_left',{n: profile.single_credits});
+  }
+  function updateAccountBtn(){
+    const btn = byId('account-btn'); if(!btn) return;
+    if(session && session.user){
+      const st = statusText();
+      btn.textContent = (session.user.email || 'Account') + (st ? ' · ' + st : '');
+    } else {
+      btn.textContent = t2('acct_signin');
+    }
+  }
+  function renderState(){
+    const inOk = !!(session && session.user);
+    show(byId('auth-signin'), !inOk);
+    show(byId('auth-signedin'), inOk);
+    if(inOk){
+      byId('acct-email').textContent = session.user.email || '';
+      byId('acct-status').textContent = statusText();
+    }
+  }
+
+  async function fetchProfile(){
+    if(!sb || !session){ profile=null; return; }
+    try{
+      const { data, error } = await sb.from('profiles')
+        .select('is_lifetime,single_credits').eq('id', session.user.id).single();
+      profile = error ? null : data;
+    }catch(e){ profile=null; }
+  }
+
+  async function refresh(s){
+    session = s;
+    await fetchProfile();
+    updateAccountBtn(); renderState();
+    // 暴露给后续步骤用
+    window.kidartAuth = {
+      isLoggedIn: !!session,
+      user: session ? session.user : null,
+      profile,
+      getToken: async ()=>{ if(!sb) return null; const { data } = await sb.auth.getSession(); return data.session ? data.session.access_token : null; },
+      refresh: async ()=>{ if(!sb) return; const { data } = await sb.auth.getSession(); await refresh(data.session); },
+      open: openModal,
+    };
+  }
+
+  // 事件
+  byId('account-btn').addEventListener('click', openModal);
+  byId('auth-close').addEventListener('click', closeModal);
+  byId('auth-mask').addEventListener('click', e=>{ if(e.target===byId('auth-mask')) closeModal(); });
+
+  byId('auth-send').addEventListener('click', async ()=>{
+    const msg = byId('auth-msg'); msg.className='msg';
+    if(!sb){ msg.className='msg err'; msg.textContent=t2('not_configured'); return; }
+    const email = byId('auth-email').value.trim();
+    if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ msg.className='msg err'; msg.textContent=t2('invalid_email'); return; }
+    msg.className='msg'; msg.textContent=t2('sending');
+    try{
+      const { error } = await sb.auth.signInWithOtp({ email, options:{ emailRedirectTo: window.location.origin } });
+      if(error){ msg.className='msg err'; msg.textContent=error.message || t2('err'); }
+      else{ msg.className='msg ok'; msg.textContent=t2('sent'); }
+    }catch(e){ msg.className='msg err'; msg.textContent=t2('err'); }
+  });
+
+  byId('auth-signout').addEventListener('click', async ()=>{ if(sb) await sb.auth.signOut(); closeModal(); });
+
+  // 语言切换后同步翻译弹窗
+  const lt = byId('lang-toggle');
+  if(lt) lt.addEventListener('click', ()=> setTimeout(applyAuthLang, 0));
+
+  // 启动
+  applyAuthLang();
+  if(sb){
+    sb.auth.getSession().then(({data})=> refresh(data.session));
+    sb.auth.onAuthStateChange((_e, s)=> refresh(s));
+  } else {
+    updateAccountBtn();
+    console.warn('[auth] 未配置 Supabase URL / anon key，登录暂不可用。');
+  }
+})();
 </script>
 </body>
 </html>
