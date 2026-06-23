@@ -1220,12 +1220,12 @@ requestAnimationFrame(fitPreview);   // 布局稳定后测量预览高度
   const I18N2 = {
     zh:{ signin_title:'登录 / 注册', signin_sub:'输入邮箱，我们会发一条登录链接给你。点开即登录，无需密码。',
          signin_btn:'发送登录链接', account_title:'我的账户', signout_btn:'退出登录',
-         acct_signin:'登录', sending:'发送中…', sent:'链接已发送，请去邮箱查收（注意垃圾箱）。',
+         acct_signin:'登录', account_short:'账户', sending:'发送中…', sent:'链接已发送，请去邮箱查收（注意垃圾箱）。',
          invalid_email:'请输入有效邮箱', err:'出错了，请重试',
          lifetime:'终身解锁', credits_left:'剩 {n} 次', not_configured:'Supabase 未配置（请在代码顶部填 URL 和 anon key）' },
     en:{ signin_title:'Sign in / Sign up', signin_sub:"Enter your email and we'll send a magic link — click it to sign in, no password needed.",
          signin_btn:'Send magic link', account_title:'My account', signout_btn:'Sign out',
-         acct_signin:'Sign in', sending:'Sending…', sent:'Link sent! Check your inbox (and spam).',
+         acct_signin:'Sign in', account_short:'Account', sending:'Sending…', sent:'Link sent! Check your inbox (and spam).',
          invalid_email:'Please enter a valid email', err:'Something went wrong, try again',
          lifetime:'Lifetime', credits_left:'{n} left', not_configured:'Supabase not configured (fill URL & anon key at top of script)' },
   };
@@ -1246,7 +1246,7 @@ requestAnimationFrame(fitPreview);   // 布局稳定后测量预览高度
     const btn = byId('account-btn'); if(!btn) return;
     if(session && session.user){
       const st = statusText();
-      btn.textContent = (session.user.email || 'Account') + (st ? ' · ' + st : '');
+      btn.textContent = st || t2('account_short');
     } else {
       btn.textContent = t2('acct_signin');
     }
