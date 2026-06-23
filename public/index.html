@@ -245,6 +245,15 @@
   .modal-close{position:absolute;top:14px;right:16px;background:none;border:none;color:var(--text-dim);
     font-size:22px;cursor:pointer;line-height:1}
   .modal-wrap{position:relative}
+  /* 付费弹窗价格卡片 */
+  .pay-card{background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
+  .pay-card.best{border-color:var(--accent)}
+  .pc-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+  .pc-name{font-size:14px;font-weight:700;color:var(--text)}
+  .pc-badge{font-size:10px;font-weight:700;color:#fff;background:var(--accent);padding:2px 9px;border-radius:10px}
+  .pc-price{font-size:24px;font-weight:800;color:var(--text)}
+  .pc-desc{font-size:11.5px;color:var(--text-dim);line-height:1.5;margin:4px 0 12px}
+  .pc-btnwrap{min-height:38px}
 
   .pill{background:var(--panel-2);border:1px solid var(--line);
     color:var(--text);font-size:12px;padding:6px 12px;border-radius:20px;cursor:pointer;
@@ -461,6 +470,17 @@
   </div>
 </div>
 
+<!-- 付费弹窗 -->
+<div class="modal-mask" id="pay-mask">
+  <div class="modal modal-wrap">
+    <button class="modal-close" id="pay-close" aria-label="close">&times;</button>
+    <h3 data-i18n2="pay_title">解锁高清导出</h3>
+    <p class="sub" data-i18n2="pay_sub">高清 / 可打印导出需解锁。社交尺寸可免费导出（带水印）。</p>
+    <div id="pay-options"></div>
+    <div class="msg" id="pay-msg"></div>
+  </div>
+</div>
+
 <script>
 "use strict";
 /* =========================================================
@@ -529,6 +549,7 @@ const I18N = {
     ro_print_sub:'可印 {w} × {h} cm（{name}）', ro_capped:' · 大尺寸已优化精度，远观清晰',
     ro_social_sub:'{name} · 适配手机屏幕', ro_custom_sub:'印刷 ≈ 300DPI {a300} · 150DPI {a150}',
     alert_export:'导出失败，请重试',
+    export_denied:'额度不足或扣减失败',
   },
   en:{
     title:'Retro Texture Illustrator', subtitle:'Photo → Riso-style art print',
@@ -550,6 +571,7 @@ const I18N = {
     ro_print_sub:'Prints {w} × {h} cm ({name})', ro_capped:' · optimized for large size, sharp at distance',
     ro_social_sub:'{name} · fits phone screens', ro_custom_sub:'Print ≈ 300DPI {a300} · 150DPI {a150}',
     alert_export:'Export failed, please try again',
+    export_denied:'Not enough credits, or charge failed',
   },
 };
 let lang='zh';
@@ -1116,9 +1138,32 @@ function updateReadout(){
   }
 }
 
-// 导出：高分辨率重渲染 + 写入 DPI
+// 水印（只给免费社交图加，预览和付费高清图都不加）
+function drawWatermark(canvas){
+  const c=canvas.getContext('2d');
+  const w=canvas.width, h=canvas.height;
+  const fs=Math.max(14, Math.round(Math.min(w,h)*0.038));
+  const pad=Math.round(fs*0.7);
+  c.save();
+  c.font=`800 ${fs}px "Helvetica Neue",-apple-system,"PingFang SC","Microsoft YaHei",sans-serif`;
+  c.textAlign='right'; c.textBaseline='bottom';
+  c.fillStyle='rgba(0,0,0,0.32)'; c.fillText('stylejoy', w-pad+2, h-pad+2);
+  c.fillStyle='rgba(255,255,255,0.92)'; c.fillText('stylejoy', w-pad, h-pad);
+  c.restore();
+}
+
+// 导出：社交=免费带水印；打印/自定义=付费无水印（先门禁，再渲染，再扣额度，再下载）
 async function doExport(){
   if(!state.artLabels) return;
+  const free = (expMode === 'social');   // 社交尺寸免费，其余付费高清
+
+  // 付费档：先过门禁（未登录→登录；无权限→付费弹窗）
+  if(!free){
+    const auth = window.kidartAuth;
+    if(!auth || !auth.isLoggedIn){ if(auth&&auth.open) auth.open(); else alert('Please sign in'); return; }
+    if(!auth.hasAccess || !auth.hasAccess()){ if(auth.openPaywall) auth.openPaywall(); return; }
+  }
+
   showLoader(t('load_export'));
   await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
   try{
@@ -1126,9 +1171,22 @@ async function doExport(){
     const sheet=buildSheet(Math.max(w,h));
     const off=document.createElement('canvas');
     paint(sheet, off);
+    if(free) drawWatermark(off);                 // 免费图加水印
     const blob=await new Promise(res=>off.toBlob(res,'image/png'));
     let bytes=new Uint8Array(await blob.arrayBuffer());
-    if(dpi>0) bytes=injectDPI(bytes, dpi);
+    if(!free && dpi>0) bytes=injectDPI(bytes, dpi);
+
+    // 付费档：图已渲好 → 服务端扣额度（lifetime 不扣 / single 扣 1）→ 成功才下载
+    if(!free){
+      const ok = await window.kidartAuth.spend({ w, h, dpi: dpi||0, mode: state.exp.mode, tag: state.exp.tag });
+      if(!ok){
+        hideLoader();
+        alert(t('export_denied'));
+        if(window.kidartAuth.openPaywall) window.kidartAuth.openPaywall();
+        return;
+      }
+    }
+
     const url=URL.createObjectURL(new Blob([bytes],{type:'image/png'}));
     const a=document.createElement('a'); a.href=url; a.download=exportName(); a.click();
     setTimeout(()=>URL.revokeObjectURL(url),1500);
@@ -1220,14 +1278,22 @@ requestAnimationFrame(fitPreview);   // 布局稳定后测量预览高度
   const I18N2 = {
     zh:{ signin_title:'登录 / 注册', signin_sub:'输入邮箱，我们会发一条登录链接给你。点开即登录，无需密码。',
          signin_btn:'发送登录链接', account_title:'我的账户', signout_btn:'退出登录',
-         acct_signin:'登录', account_short:'账户', sending:'发送中…', sent:'链接已发送，请去邮箱查收（注意垃圾箱）。',
+         acct_signin:'登录', sending:'发送中…', sent:'链接已发送，请去邮箱查收（注意垃圾箱）。',
          invalid_email:'请输入有效邮箱', err:'出错了，请重试',
-         lifetime:'终身解锁', credits_left:'剩 {n} 次', not_configured:'Supabase 未配置（请在代码顶部填 URL 和 anon key）' },
+         lifetime:'终身解锁', credits_left:'剩 {n} 次', account_short:'账户', not_configured:'Supabase 未配置（请在代码顶部填 URL 和 anon key）',
+         pay_title:'解锁高清导出', pay_sub:'高清 / 可打印导出需解锁。社交尺寸始终可免费导出（带水印）。',
+         pay_single:'单张高清', pay_lifetime:'终身无限', pay_best:'最划算',
+         pay_single_desc:'本次导出 1 张无水印高清图', pay_lifetime_desc:'无限次导出 · 无水印 · 含后续新功能（约做 5 张就回本）',
+         pay_stub:'支付按钮下一步接入', pay_stub_msg:'PayPal 付款将在下一步（3.4）接入。' },
     en:{ signin_title:'Sign in / Sign up', signin_sub:"Enter your email and we'll send a magic link — click it to sign in, no password needed.",
          signin_btn:'Send magic link', account_title:'My account', signout_btn:'Sign out',
-         acct_signin:'Sign in', account_short:'Account', sending:'Sending…', sent:'Link sent! Check your inbox (and spam).',
+         acct_signin:'Sign in', sending:'Sending…', sent:'Link sent! Check your inbox (and spam).',
          invalid_email:'Please enter a valid email', err:'Something went wrong, try again',
-         lifetime:'Lifetime', credits_left:'{n} left', not_configured:'Supabase not configured (fill URL & anon key at top of script)' },
+         lifetime:'Lifetime', credits_left:'{n} left', account_short:'Account', not_configured:'Supabase not configured (fill URL & anon key at top of script)',
+         pay_title:'Unlock HD export', pay_sub:'HD / printable export needs unlocking. Social sizes are always free (watermarked).',
+         pay_single:'Single HD', pay_lifetime:'Lifetime unlimited', pay_best:'Best value',
+         pay_single_desc:'One watermark-free HD export', pay_lifetime_desc:'Unlimited exports · no watermark · future features included (pays off in ~5 prints)',
+         pay_stub:'Payment buttons coming next', pay_stub_msg:'PayPal checkout will be wired in the next step (3.4).' },
   };
   function alang(){ try{ return localStorage.getItem('ri_lang')==='en' ? 'en':'zh'; }catch(e){ return 'zh'; } }
   function t2(k,vars){ let s=(I18N2[alang()]||I18N2.zh)[k]||k; if(vars)for(const x in vars)s=s.split('{'+x+'}').join(vars[x]); return s; }
@@ -1270,6 +1336,84 @@ requestAnimationFrame(fitPreview);   // 布局稳定后测量预览高度
     }catch(e){ profile=null; }
   }
 
+  // 是否有权导出高清（终身 或 还有次数）
+  function hasAccess(){ return !!(profile && (profile.is_lifetime || profile.single_credits > 0)); }
+
+  // 服务端原子扣额度（lifetime 不扣 / single 扣1）。成功才返回 true。
+  // 注意：图已在前端渲好后才调它 —— "能不能导"由服务端裁决。
+  async function spend(spec){
+    if(!sb || !session) return false;
+    try{
+      const { data, error } = await sb.rpc('spend_single_credit');
+      if(error || data !== true) return false;
+      // 记一条导出流水（失败不影响下载）
+      try{
+        await sb.from('exports').insert({
+          user_id: session.user.id, spec: spec || null,
+          credits_spent: (profile && profile.is_lifetime) ? 0 : 1,
+        });
+      }catch(e){}
+      // 刷新额度显示
+      const { data: s } = await sb.auth.getSession();
+      await refresh(s.session);
+      return true;
+    }catch(e){ return false; }
+  }
+
+  // ---------- 付费弹窗 ----------
+  const closePay = ()=> byId('pay-mask').classList.remove('show');
+  function mountStub(id){
+    const el = byId(id); if(!el) return;
+    el.innerHTML='';
+    const b=document.createElement('button');
+    b.className='btn btn-primary'; b.style.width='100%';
+    b.textContent=t2('pay_stub');
+    b.addEventListener('click', ()=>{ byId('pay-msg').className='msg'; byId('pay-msg').textContent=t2('pay_stub_msg'); });
+    el.appendChild(b);
+  }
+  async function loadPrices(){
+    const box = byId('pay-options'); box.innerHTML='';
+    let prices=[];
+    try{
+      const { data } = await sb.from('pricing').select('id,amount,currency').in('id',['single','lifetime']);
+      prices = data || [];
+    }catch(e){}
+    const get = id => prices.find(p=>p.id===id);
+    const life = get('lifetime'), single = get('single');
+    const cur = (life && life.currency) || (single && single.currency) || 'USD';
+    const sym = cur==='USD' ? '$' : '';
+    const fmt = a => sym + Number(a).toFixed(2);
+    // 终身（主推，放上面）
+    if(life){
+      const d=document.createElement('div'); d.className='pay-card best';
+      d.innerHTML=`<div class="pc-top"><span class="pc-name">${t2('pay_lifetime')}</span><span class="pc-badge">${t2('pay_best')}</span></div>
+        <div class="pc-price">${fmt(life.amount)}</div>
+        <div class="pc-desc">${t2('pay_lifetime_desc')}</div>
+        <div class="pc-btnwrap" id="pp-lifetime"></div>`;
+      box.appendChild(d);
+    }
+    // 单张
+    if(single){
+      const d=document.createElement('div'); d.className='pay-card';
+      d.innerHTML=`<div class="pc-top"><span class="pc-name">${t2('pay_single')}</span></div>
+        <div class="pc-price">${fmt(single.amount)}</div>
+        <div class="pc-desc">${t2('pay_single_desc')}</div>
+        <div class="pc-btnwrap" id="pp-single"></div>`;
+      box.appendChild(d);
+    }
+    // 3.3：占位按钮；3.4 会换成真正的 PayPal 按钮
+    mountStub('pp-lifetime'); mountStub('pp-single');
+  }
+  async function openPaywall(){
+    if(!sb){ return; }
+    // 没登录先去登录
+    if(!session){ openModal(); return; }
+    applyAuthLang();
+    byId('pay-msg').textContent='';
+    byId('pay-mask').classList.add('show');
+    await loadPrices();
+  }
+
   async function refresh(s){
     session = s;
     await fetchProfile();
@@ -1279,6 +1423,9 @@ requestAnimationFrame(fitPreview);   // 布局稳定后测量预览高度
       isLoggedIn: !!session,
       user: session ? session.user : null,
       profile,
+      hasAccess,
+      spend,
+      openPaywall,
       getToken: async ()=>{ if(!sb) return null; const { data } = await sb.auth.getSession(); return data.session ? data.session.access_token : null; },
       refresh: async ()=>{ if(!sb) return; const { data } = await sb.auth.getSession(); await refresh(data.session); },
       open: openModal,
@@ -1304,6 +1451,10 @@ requestAnimationFrame(fitPreview);   // 布局稳定后测量预览高度
   });
 
   byId('auth-signout').addEventListener('click', async ()=>{ if(sb) await sb.auth.signOut(); closeModal(); });
+
+  // 付费弹窗关闭
+  byId('pay-close').addEventListener('click', closePay);
+  byId('pay-mask').addEventListener('click', e=>{ if(e.target===byId('pay-mask')) closePay(); });
 
   // 语言切换后同步翻译弹窗
   const lt = byId('lang-toggle');
