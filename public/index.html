@@ -1,9 +1,10 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>复古肌理插画生成器</title>
+<title>stylejoy — Turn Photos into Riso-Style Art Prints</title>
+<meta name="description" content="Transform your kid's drawing or any photo into a stunning Riso-style art print. Free to try, no sign-up needed.">
 <style>
   :root{
     --ink:#16140f;
@@ -14,1603 +15,408 @@
     --paper-2:#d8d0bd;
     --text:#efe9da;
     --text-dim:#a9a193;
-    --accent:#e8623a;     /* riso 朱红 */
-    --accent-2:#f0b429;   /* riso 金黄 */
+    --accent:#e8623a;
+    --accent-2:#f0b429;
     --r:10px;
     --font:"Helvetica Neue",-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
   }
   *{box-sizing:border-box;margin:0;padding:0}
-  html,body{height:100%}
+  html{scroll-behavior:smooth}
   body{
     font-family:var(--font);
     background:var(--ink);
     color:var(--text);
     -webkit-font-smoothing:antialiased;
-    overflow:hidden;
+    line-height:1.6;
   }
-  .app{display:flex;height:100vh;width:100vw}
 
-  /* ---------- 右侧：控制面板（窄，可滚动） ---------- */
-  .panel{
-    width:372px;flex:0 0 372px;
-    background:var(--panel);
-    border-left:1px solid var(--line);
-    display:flex;flex-direction:column;
-    height:100%;
+  /* ---- Layout ---- */
+  .container{max-width:720px;margin:0 auto;padding:0 20px}
+
+  /* ---- Nav ---- */
+  nav{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:18px 24px;border-bottom:1px solid var(--line);
+    position:sticky;top:0;z-index:10;
+    background:rgba(22,20,15,.92);backdrop-filter:blur(8px);
   }
-  /* 左侧顶部：品牌 + 语言切换 */
-  .leftbar{flex:0 0 auto;border-bottom:1px solid var(--line)}
-  .brand{padding:16px 22px 12px}
-  .brand h1{
-    font-size:16px;font-weight:800;letter-spacing:.04em;
-    display:flex;align-items:center;gap:9px;
+  .nav-brand{display:flex;align-items:center;gap:9px;font-size:15px;font-weight:800;letter-spacing:.04em;text-decoration:none;color:var(--text)}
+  .nav-dot{width:13px;height:13px;border-radius:3px;background:var(--accent);box-shadow:4px 0 0 var(--accent-2);transform:translateX(-2px)}
+  .nav-cta{
+    display:inline-flex;align-items:center;
+    background:var(--accent);color:#fff;
+    font-size:13px;font-weight:700;padding:8px 18px;border-radius:8px;
+    text-decoration:none;transition:.12s;letter-spacing:.02em;
   }
-  .brand .dot{
-    width:13px;height:13px;border-radius:3px;
-    background:var(--accent);
-    box-shadow:4px 0 0 var(--accent-2);
-    transform:translateX(-2px);
+  .nav-cta:hover{background:#f06f48}
+
+  /* ---- Hero ---- */
+  .hero{
+    padding:72px 20px 56px;
+    text-align:center;
+    background:radial-gradient(ellipse at 50% 0%,#211e18 0%,var(--ink) 70%);
   }
-  .brand p{font-size:11px;color:var(--text-dim);margin-top:6px;letter-spacing:.02em}
-
-  .scroll{flex:1;overflow-y:auto;padding:4px 0 24px}
-  .scroll::-webkit-scrollbar{width:8px}
-  .scroll::-webkit-scrollbar-thumb{background:var(--line);border-radius:8px}
-
-  .group{border-bottom:1px solid var(--line);padding:16px 20px}
-  .group h2{
-    font-size:11px;font-weight:700;letter-spacing:.12em;
-    color:var(--text-dim);text-transform:uppercase;
-    margin-bottom:14px;display:flex;align-items:center;gap:7px;
+  .hero-eyebrow{
+    display:inline-block;
+    font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--accent-2);margin-bottom:20px;
   }
-  .group h2 .bar{width:14px;height:2px;background:var(--accent)}
-
-  .field{margin-bottom:15px}
-  .field:last-child{margin-bottom:0}
-  .field .row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px}
-  .field label{font-size:12.5px;color:var(--text)}
-  .field .val{font-size:12px;color:var(--accent-2);font-variant-numeric:tabular-nums;font-weight:600}
-
-  input[type=range]{
-    -webkit-appearance:none;width:100%;height:3px;border-radius:3px;
-    background:var(--line);outline:none;
+  .hero h1{
+    font-size:clamp(2rem,6vw,3.2rem);
+    font-weight:800;line-height:1.15;
+    letter-spacing:-.01em;
+    margin-bottom:18px;
   }
-  input[type=range]::-webkit-slider-thumb{
-    -webkit-appearance:none;width:15px;height:15px;border-radius:50%;
-    background:var(--paper);cursor:pointer;border:3px solid var(--accent);
-    transition:transform .1s;
+  .hero h1 em{
+    font-style:normal;
+    background:linear-gradient(90deg,var(--accent),var(--accent-2));
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
   }
-  input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.15)}
-  input[type=range]::-moz-range-thumb{
-    width:15px;height:15px;border-radius:50%;background:var(--paper);
-    cursor:pointer;border:3px solid var(--accent)}
-
-  /* 获取图片：紧凑上传条 + 载入示例（并排一行） */
-  .getrow{display:flex;gap:10px;padding:0 22px 16px}
-  .drop{
-    flex:1;display:flex;align-items:center;justify-content:center;gap:8px;
-    height:42px;padding:0 12px;cursor:pointer;white-space:nowrap;
-    border:1.5px dashed var(--line);border-radius:var(--r);
-    background:var(--panel-2);color:var(--text-dim);font-size:12.5px;transition:.15s;
+  .hero-sub{
+    font-size:clamp(1rem,2.5vw,1.15rem);
+    color:var(--text-dim);
+    max-width:480px;margin:0 auto 36px;
   }
-  .drop:hover,.drop.over{border-color:var(--accent);color:var(--text);background:#2c2820}
-  .drop .ico{font-size:16px;opacity:.75}
-  .drop b{color:var(--text);font-size:12.5px;font-weight:600}
-  .samplebtn{
-    flex:1;display:flex;align-items:center;justify-content:center;gap:7px;
-    height:42px;border-radius:var(--r);cursor:pointer;white-space:nowrap;
-    background:var(--panel-2);border:1px solid var(--line);color:var(--text);
-    font-size:12.5px;font-weight:600;font-family:var(--font);transition:.12s;
+  .btn-primary{
+    display:inline-flex;align-items:center;gap:8px;
+    background:var(--accent);color:#fff;
+    font-size:16px;font-weight:700;letter-spacing:.03em;
+    padding:16px 36px;border-radius:12px;
+    text-decoration:none;transition:.12s;
+    min-height:52px;
   }
-  .samplebtn:hover{border-color:var(--accent)}
-
-  /* 调色板 */
-  .swatches{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
-  .sw{position:relative;width:48px;height:40px;border-radius:8px;
-    border:2px solid rgba(255,255,255,.12);cursor:pointer;overflow:hidden;
-    transition:transform .1s}
-  .sw:hover{transform:translateY(-2px)}
-  .sw input{position:absolute;inset:0;opacity:0;cursor:pointer}
-  .sw .n{position:absolute;top:2px;left:4px;font-size:9px;font-weight:700;
-    color:#fff;mix-blend-mode:difference}
-
-  .duo{display:flex;gap:10px}
-  .duo .field{flex:1}
-  .colorbtn{display:flex;align-items:center;gap:8px;width:100%;
-    background:var(--panel-2);border:1px solid var(--line);border-radius:8px;
-    padding:7px 9px;cursor:pointer;position:relative}
-  .colorbtn .chip{width:20px;height:20px;border-radius:5px;border:1px solid rgba(255,255,255,.15)}
-  .colorbtn span{font-size:12px}
-  .colorbtn input{position:absolute;inset:0;opacity:0;cursor:pointer}
-
-  select.sel{width:100%;background:var(--panel-2);border:1px solid var(--line);
-    color:var(--text);border-radius:8px;padding:8px 9px;font-size:12.5px;
-    font-family:var(--font);cursor:pointer;-webkit-appearance:none;appearance:none;
-    background-image:linear-gradient(45deg,transparent 50%,var(--text-dim) 50%),
-      linear-gradient(135deg,var(--text-dim) 50%,transparent 50%);
-    background-position:calc(100% - 16px) 16px,calc(100% - 11px) 16px;
-    background-size:5px 5px,5px 5px;background-repeat:no-repeat}
-  select.sel:focus{outline:none;border-color:var(--accent)}
-  .hint-text{font-size:11px;color:var(--text-dim);line-height:1.6;margin-top:-2px}
-
-  .mini-label{display:block;margin-bottom:7px;font-size:12px;color:var(--text)}
-  /* 模式切换 */
-  .tabs{display:flex;background:var(--panel-2);border:1px solid var(--line);
-    border-radius:9px;padding:3px;margin-bottom:14px;gap:2px}
-  .tab{flex:1;border:none;background:transparent;color:var(--text-dim);
-    font-size:12.5px;font-weight:600;padding:8px 4px;border-radius:6px;cursor:pointer;
-    font-family:var(--font);transition:.12s}
-  .tab.active{background:var(--accent);color:#fff}
-  .exp-panel[hidden]{display:none}
-  /* 社交预设卡片 */
-  .preset-grid{display:flex;flex-direction:column;gap:8px}
-  .preset-btn{display:flex;align-items:center;justify-content:space-between;width:100%;
-    background:var(--panel-2);border:1px solid var(--line);border-radius:9px;
-    padding:9px 11px;cursor:pointer;transition:.12s;font-family:var(--font)}
-  .preset-btn:hover{border-color:var(--text-dim)}
-  .preset-btn.active{border-color:var(--accent);background:#2c2820}
-  .preset-left{display:flex;align-items:center;gap:11px}
-  .preset-btn .pratio{flex:0 0 auto;border:1.5px solid var(--text-dim);border-radius:2px;background:#0000}
-  .preset-btn.active .pratio{border-color:var(--accent-2)}
-  .preset-btn .pname{font-size:13px;color:var(--text);font-weight:600}
-  .preset-btn .pdim{font-size:11px;color:var(--text-dim);font-variant-numeric:tabular-nums}
-  /* 分段按钮 */
-  .seg{display:flex;gap:6px}
-  .seg button{flex:1;background:var(--panel-2);border:1px solid var(--line);color:var(--text-dim);
-    font-size:11.5px;font-weight:600;padding:8px 4px;border-radius:7px;cursor:pointer;
-    font-family:var(--font);transition:.12s;white-space:nowrap}
-  .seg button.active{border-color:var(--accent);color:var(--text);background:#2c2820}
-  /* 规格回显 */
-  .readout{margin-top:14px;background:var(--panel-2);border:1px solid var(--line);
-    border-radius:9px;padding:11px 13px;line-height:1.5}
-  .readout .big{font-size:14px;color:var(--text);font-weight:700;font-variant-numeric:tabular-nums}
-  .readout .big b{color:var(--accent-2)}
-  .readout .sub{color:var(--text-dim);font-size:11px;margin-top:4px}
-
-  .presets{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:13px}
-  .preset{display:flex;border-radius:7px;overflow:hidden;cursor:pointer;
-    border:2px solid transparent;transition:.12s;height:26px}
-  .preset:hover{border-color:var(--paper)}
-  .preset i{width:15px;height:100%}
-
-  .btn{
-    width:100%;border:none;border-radius:9px;padding:11px;cursor:pointer;
-    font-size:13px;font-weight:700;font-family:var(--font);letter-spacing:.03em;
-    transition:.12s;
+  .btn-primary:hover{background:#f06f48;transform:translateY(-1px)}
+  .trust{
+    margin-top:16px;font-size:12px;color:var(--text-dim);
+    display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;
   }
-  .btn-primary{background:var(--accent);color:#fff}
-  .btn-primary:hover{background:#f06f48}
-  .btn-ghost{background:var(--panel-2);color:var(--text);border:1px solid var(--line)}
-  .btn-ghost:hover{border-color:var(--text-dim)}
-  .btn-row{display:flex;gap:9px}
-  .btn-row .btn{flex:1}
+  .trust span{display:flex;align-items:center;gap:5px}
 
-  .check{display:flex;align-items:center;gap:9px;cursor:pointer;font-size:12.5px}
-  .check input{width:16px;height:16px;accent-color:var(--accent)}
-
-  /* ---------- 左侧：图片预览主区（宽） ---------- */
-  .stage{
-    flex:1;min-width:0;position:relative;
-    display:flex;flex-direction:column;
-    background:radial-gradient(circle at 30% 18%, #211e18, var(--ink) 70%);
-    overflow:hidden;
+  /* ---- Before/After hero pair ---- */
+  .hero-ba{
+    display:flex;gap:16px;margin:44px auto 0;
+    max-width:600px;align-items:stretch;
   }
-  .preview{flex:1;min-height:0;position:relative;
-    display:flex;align-items:center;justify-content:center;padding:30px}
-  .canvas-wrap{
-    position:relative;max-width:100%;
-    max-height:var(--canvas-maxh, calc(100vh - 210px));
-    box-shadow:0 30px 80px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.05);
-    border-radius:3px;background:#fff;
+  .ba-item{flex:1;display:flex;flex-direction:column;gap:8px;text-align:center}
+  .ba-label{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim)}
+  /* ↓↓↓ 替换为真实图片：删掉 .ba-img div，改成 <img src="your-photo.jpg" class="ba-img" alt=""> ↓↓↓ */
+  .ba-img{
+    width:100%;aspect-ratio:3/4;border-radius:10px;overflow:hidden;
+    background:var(--panel-2);border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;
+    font-size:12px;font-weight:700;letter-spacing:.1em;color:var(--text-dim);
   }
-  canvas{display:block;max-width:100%;
-    max-height:var(--canvas-maxh, calc(100vh - 210px));border-radius:3px}
-  .empty-hint{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-    color:var(--text-dim);font-size:14px;text-align:center;
-    pointer-events:none;line-height:1.7}
-  .empty-hint b{color:var(--text);font-size:16px}
-
-  .badge{position:absolute;bottom:10px;right:10px;
-    background:rgba(0,0,0,.55);color:#fff;font-size:10px;padding:3px 8px;
-    border-radius:5px;font-variant-numeric:tabular-nums;letter-spacing:.04em}
-
-  .loader{position:absolute;inset:0;display:none;align-items:center;justify-content:center;
-    background:rgba(22,20,15,.6);backdrop-filter:blur(2px);z-index:5;
-    flex-direction:column;gap:14px;color:var(--text);font-size:13px}
-  .loader.show{display:flex}
-  .spin{width:34px;height:34px;border:3px solid var(--line);border-top-color:var(--accent);
-    border-radius:50%;animation:sp .7s linear infinite}
-  @keyframes sp{to{transform:rotate(360deg)}}
-
-  /* ---------- 账户 / 登录 ---------- */
-  #account-btn{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .modal-mask{position:fixed;inset:0;background:rgba(10,9,7,.7);backdrop-filter:blur(3px);
-    display:none;align-items:center;justify-content:center;z-index:50;padding:20px}
-  .modal-mask.show{display:flex}
-  .modal{width:100%;max-width:380px;background:var(--panel);border:1px solid var(--line);
-    border-radius:16px;padding:24px;box-shadow:0 30px 80px rgba(0,0,0,.6)}
-  .modal h3{font-size:17px;font-weight:800;margin-bottom:6px;color:var(--text)}
-  .modal p.sub{font-size:12.5px;color:var(--text-dim);line-height:1.6;margin-bottom:18px}
-  .modal input[type=email]{width:100%;background:var(--panel-2);border:1px solid var(--line);
-    color:var(--text);border-radius:10px;padding:12px 13px;font-size:14px;font-family:var(--font);
-    margin-bottom:12px;outline:none}
-  .modal input[type=email]:focus{border-color:var(--accent)}
-  .modal .msg{font-size:12.5px;line-height:1.6;margin-top:12px;min-height:1em}
-  .modal .msg.ok{color:var(--accent-2)}
-  .modal .msg.err{color:#ff8f6b}
-  .btn-google{
-    display:flex;align-items:center;justify-content:center;gap:10px;width:100%;
-    background:#fff;color:#3c3c3c;border:1px solid #ddd;border-radius:9px;
-    padding:11px;font-size:13px;font-weight:600;font-family:var(--font);
-    cursor:pointer;transition:.12s;margin-bottom:0;
+  .ba-img.after{border-color:var(--accent);background:#2a1f1a}
+  .ba-arrow{
+    display:flex;align-items:center;justify-content:center;
+    font-size:28px;color:var(--accent);padding-top:24px;flex:0 0 auto;
   }
-  .btn-google:hover{background:#f5f5f5;border-color:#bbb}
-  .or-divider{display:flex;align-items:center;gap:10px;margin:14px 0;color:var(--text-dim);font-size:12px}
-  .or-divider::before,.or-divider::after{content:'';flex:1;height:1px;background:var(--line)}
-  .modal .acct-row{display:flex;align-items:center;justify-content:space-between;
-    background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:12px 13px;margin-bottom:14px}
-  .modal .acct-row .em{font-size:13px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .modal .acct-row .badge2{font-size:11px;color:var(--accent-2);font-weight:700;flex:0 0 auto;margin-left:10px}
-  .modal-close{position:absolute;top:14px;right:16px;background:none;border:none;color:var(--text-dim);
-    font-size:22px;cursor:pointer;line-height:1}
-  .modal-wrap{position:relative}
-  /* 付费弹窗价格卡片 */
-  .pay-card{background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
-  .pay-card.best{border-color:var(--accent)}
-  .pc-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
-  .pc-name{font-size:14px;font-weight:700;color:var(--text)}
-  .pc-badge{font-size:10px;font-weight:700;color:#fff;background:var(--accent);padding:2px 9px;border-radius:10px}
-  .pc-price{font-size:24px;font-weight:800;color:var(--text)}
-  .pc-desc{font-size:11.5px;color:var(--text-dim);line-height:1.5;margin:4px 0 12px}
-  .pc-btnwrap{min-height:38px}
-
-  .pill{background:var(--panel-2);border:1px solid var(--line);
-    color:var(--text);font-size:12px;padding:6px 12px;border-radius:20px;cursor:pointer;
-    font-weight:600;transition:.12s}
-  .pill:hover{border-color:var(--accent)}
-  #lang-toggle{margin-left:auto;min-width:42px;text-align:center;font-weight:700}
-
-  @media (max-width:820px){
-    html,body{overflow:auto}
-    .app{flex-direction:column;height:auto;min-height:100vh}
-    .stage{flex:0 0 auto}
-    .preview{min-height:48vh;padding:16px}
-    .panel{width:100%;flex:0 0 auto;height:auto;border-left:none;border-top:1px solid var(--line)}
-    .scroll{flex:0 0 auto;overflow:visible}
-    .brand{padding:14px 18px 10px}
-    .getrow{padding:0 18px 14px}
+  @media(max-width:480px){
+    .hero-ba{flex-direction:column;gap:8px;max-width:280px}
+    .ba-arrow{transform:rotate(90deg);padding:4px 0}
+    .ba-img{aspect-ratio:4/3}
   }
-  /* 页脚：固定右下角，低调，不占工具空间 */
-  #site-footer{
-    position:fixed;bottom:10px;right:14px;z-index:5;
-    display:flex;align-items:center;gap:10px;
-    font-size:11px;color:var(--text-dim);opacity:.35;
-    transition:opacity .2s;pointer-events:none;
+
+  /* ---- Section shared ---- */
+  section{padding:72px 20px}
+  section:nth-child(even){background:var(--panel)}
+  .section-label{
+    font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--accent);margin-bottom:10px;
   }
-  #site-footer:hover{opacity:.85}
-  #site-footer a,#site-footer span{pointer-events:auto}
-  #site-footer a{color:var(--text-dim);text-decoration:none}
-  #site-footer a:hover{color:var(--text);text-decoration:underline}
-  #site-footer .sep{opacity:.5}
-  @media (max-width:820px){#site-footer{display:none}}
+  .section-title{font-size:clamp(1.5rem,4vw,2rem);font-weight:800;margin-bottom:12px;line-height:1.2}
+  .section-sub{font-size:1rem;color:var(--text-dim);margin-bottom:40px}
+
+  /* ---- Gallery ---- */
+  .gallery-grid{
+    display:grid;
+    grid-template-columns:repeat(2,1fr);
+    gap:16px;
+  }
+  .gallery-pair{display:flex;flex-direction:column;gap:8px}
+  .gallery-pair-row{display:flex;gap:8px}
+  .gallery-pair-row .ba-img{aspect-ratio:1}
+  .gallery-pair-label{display:flex;gap:8px}
+  .gallery-pair-label span{flex:1;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim);text-align:center}
+  .gallery-caption{font-size:12px;color:var(--text-dim);text-align:center;margin-top:4px}
+  @media(max-width:520px){
+    .gallery-grid{grid-template-columns:1fr}
+  }
+
+  /* ---- How it works ---- */
+  .steps{display:flex;gap:24px;flex-wrap:wrap;margin-top:8px}
+  .step{flex:1;min-width:180px;background:var(--panel-2);border:1px solid var(--line);border-radius:14px;padding:24px 20px}
+  .step-icon{font-size:32px;margin-bottom:14px}
+  .step-num{font-size:11px;font-weight:700;letter-spacing:.12em;color:var(--accent);text-transform:uppercase;margin-bottom:6px}
+  .step h3{font-size:15px;font-weight:700;margin-bottom:6px}
+  .step p{font-size:13px;color:var(--text-dim);line-height:1.55}
+  @media(max-width:520px){.steps{flex-direction:column}}
+
+  /* ---- Pricing ---- */
+  .pricing-grid{display:flex;gap:16px;flex-wrap:wrap;align-items:stretch}
+  .price-card{
+    flex:1;min-width:200px;
+    background:var(--panel-2);border:1px solid var(--line);
+    border-radius:14px;padding:24px 20px;
+    display:flex;flex-direction:column;gap:0;
+  }
+  .price-card.best{border-color:var(--accent-2);position:relative;overflow:hidden}
+  .price-card.best::before{
+    content:'BEST VALUE';position:absolute;top:14px;right:-22px;
+    background:var(--accent-2);color:var(--ink);
+    font-size:9px;font-weight:800;letter-spacing:.1em;
+    padding:4px 32px;transform:rotate(35deg);
+  }
+  .price-name{font-size:13px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px}
+  .price-amount{font-size:2.4rem;font-weight:800;color:var(--text);margin-bottom:4px;line-height:1}
+  .price-amount sup{font-size:1rem;vertical-align:top;margin-top:8px}
+  .price-period{font-size:12px;color:var(--text-dim);margin-bottom:20px}
+  .price-features{list-style:none;margin-bottom:24px;flex:1;display:flex;flex-direction:column;gap:8px}
+  .price-features li{font-size:13px;color:var(--text-dim);display:flex;gap:8px;align-items:flex-start}
+  .price-features li::before{content:'✓';color:var(--accent);font-weight:700;flex:0 0 auto}
+  .price-features li.no{color:rgba(169,161,147,.5)}
+  .price-features li.no::before{content:'–';color:rgba(169,161,147,.4)}
+  .btn-price{
+    display:block;text-align:center;
+    background:var(--panel);border:1px solid var(--line);
+    color:var(--text);font-size:13px;font-weight:700;
+    padding:12px;border-radius:9px;text-decoration:none;transition:.12s;
+  }
+  .btn-price:hover{border-color:var(--accent);color:var(--accent)}
+  .price-card.best .btn-price{background:var(--accent);border-color:var(--accent);color:#fff}
+  .price-card.best .btn-price:hover{background:#f06f48}
+  @media(max-width:580px){.pricing-grid{flex-direction:column}}
+
+  /* ---- Final CTA ---- */
+  .final-cta{
+    text-align:center;
+    background:radial-gradient(ellipse at 50% 100%,#2a1f18 0%,var(--ink) 70%);
+  }
+  .final-cta h2{font-size:clamp(1.6rem,4vw,2.2rem);font-weight:800;margin-bottom:16px;line-height:1.2}
+  .final-cta p{color:var(--text-dim);margin-bottom:36px;font-size:1rem}
+
+  /* ---- Footer ---- */
+  footer{
+    border-top:1px solid var(--line);
+    padding:24px 20px;
+    display:flex;align-items:center;justify-content:center;
+    gap:16px;flex-wrap:wrap;
+    font-size:12px;color:var(--text-dim);
+  }
+  footer a{color:var(--text-dim);text-decoration:none}
+  footer a:hover{color:var(--text)}
+  .sep{opacity:.4}
 </style>
 </head>
 <body>
-<div class="app">
-  <!-- 左侧：图片预览主区 -->
-  <main class="stage" id="stage">
-    <div class="leftbar">
-      <div class="brand">
-        <h1><span class="dot"></span><span class="title-text" data-i18n="title">复古肌理插画生成器</span><button class="pill" id="lang-toggle">EN</button><button class="pill" id="account-btn">Sign in</button></h1>
-        <p data-i18n="subtitle">照片 → Riso 孔版风格装饰画</p>
-      </div>
-      <div class="getrow">
-        <div class="drop" id="drop">
-          <span class="ico">⇪</span>
-          <b data-i18n="drop_title">上传 / 拖入照片</b>
-          <input type="file" id="file" accept="image/*" hidden>
-        </div>
-        <button class="samplebtn" id="sample" data-i18n="pill_sample">载入示例</button>
-      </div>
-    </div>
-    <div class="preview">
-      <div class="canvas-wrap" id="wrap" style="display:none">
-        <canvas id="cv"></canvas>
-        <div class="badge" id="badge"></div>
-      </div>
-      <div class="empty-hint" id="hint">
-        <b data-i18n="empty_b">从左上角上传一张照片</b><br>
-        <span data-i18n="empty_l2">花卉、人像、静物、风景都可以</span><br>
-        <span data-i18n="empty_l3">建议主体清晰、背景简单</span>
-      </div>
-      <div class="loader" id="loader"><div class="spin"></div><span id="loadtext">正在分区…</span></div>
-    </div>
-  </main>
 
-  <!-- 右侧：控制面板 -->
-  <aside class="panel">
-    <div class="scroll">
+<!-- ===== NAV ===== -->
+<nav>
+  <a class="nav-brand" href="/">
+    <span class="nav-dot"></span>
+    stylejoy
+  </a>
+  <a class="nav-cta" href="/app.html">Try it free →</a>
+</nav>
 
-      <!-- 分区 -->
-      <div class="group">
-        <h2><span class="bar"></span><span data-i18n="g_seg">分区生成</span></h2>
-        <div class="field">
-          <div class="row"><label data-i18n="f_colors">色块数量</label><span class="val" id="v-colors">4</span></div>
-          <input type="range" id="colors" min="2" max="8" step="1" value="4">
-        </div>
-        <div class="field">
-          <div class="row"><label data-i18n="f_contrast">对比度</label><span class="val" id="v-contrast">1.0×</span></div>
-          <input type="range" id="contrast" min="0.5" max="2.2" step="0.1" value="1">
-        </div>
-        <div class="field">
-          <div class="row"><label data-i18n="f_smooth">区域平滑</label><span class="val" id="v-smooth">4</span></div>
-          <input type="range" id="smooth" min="0" max="8" step="1" value="4">
-        </div>
-        <button class="btn btn-ghost" id="resegment" style="margin-top:4px" data-i18n="btn_reseg">↻ 重新分区</button>
-      </div>
+<!-- ===== HERO ===== -->
+<section class="hero">
+  <div class="container">
+    <div class="hero-eyebrow">Riso-style art print maker</div>
+    <h1>Turn your kid's drawing<br>into <em>wall-worthy art</em></h1>
+    <p class="hero-sub">Upload any photo or doodle — our tool transforms it into a gorgeous Riso-style print in seconds. Perfect for framing, gifting, or sharing.</p>
 
-      <!-- 描边与肌理 -->
-      <div class="group">
-        <h2><span class="bar"></span><span data-i18n="g_outline">描边与肌理</span></h2>
-        <div class="field">
-          <div class="row"><label data-i18n="f_thick">轮廓粗细</label><span class="val" id="v-thick">4</span></div>
-          <input type="range" id="thick" min="0" max="10" step="1" value="4">
-        </div>
-        <div class="field">
-          <div class="row"><label data-i18n="f_rough">边缘毛糙（喷溅）</label><span class="val" id="v-rough">55%</span></div>
-          <input type="range" id="rough" min="0" max="100" step="1" value="55">
-        </div>
-        <div class="field">
-          <div class="row"><label data-i18n="f_grain">颗粒肌理</label><span class="val" id="v-grain">30%</span></div>
-          <input type="range" id="grain" min="0" max="100" step="1" value="30">
-        </div>
-        <div class="field">
-          <div class="row"><label data-i18n="f_paper">纸张纹理</label><span class="val" id="v-paper">25%</span></div>
-          <input type="range" id="paper" min="0" max="100" step="1" value="25">
-        </div>
-      </div>
-
-      <!-- 配色 -->
-      <div class="group">
-        <h2><span class="bar"></span><span data-i18n="g_colors">色彩控制</span></h2>
-        <div class="presets" id="presets"></div>
-        <div class="swatches" id="swatches"></div>
-        <button class="btn btn-ghost" id="random" style="margin-bottom:13px" data-i18n="btn_random">🎲 随机配色</button>
-        <div class="duo">
-          <div class="field">
-            <label style="display:block;margin-bottom:6px;font-size:12px" data-i18n="f_inkcolor">轮廓颜色</label>
-            <div class="colorbtn"><span class="chip" id="ink-chip"></span><span id="ink-label">#16140f</span>
-              <input type="color" id="ink" value="#16140f"></div>
-          </div>
-          <div class="field">
-            <label style="display:block;margin-bottom:6px;font-size:12px" data-i18n="f_papercolor">纸张颜色</label>
-            <div class="colorbtn"><span class="chip" id="bg-chip"></span><span id="bg-label">#e9e3d4</span>
-              <input type="color" id="bg" value="#e9e3d4"></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 画面留白 -->
-      <div class="group">
-        <h2><span class="bar"></span><span data-i18n="g_margin">画面留白</span></h2>
-        <div class="field">
-          <div class="row"><label data-i18n="f_margin">留白边距</label><span class="val" id="v-margin">6%</span></div>
-          <input type="range" id="margin" min="0" max="40" step="1" value="6">
-        </div>
-        <p class="hint-text" data-i18n="hint_margin">边距用「纸张颜色」填充。想要纯净留白把纸张设为白色；想让背景延伸到边缘，把纸张设成接近背景色。画面比例由下方「导出」按用途自动决定。</p>
-      </div>
-
-      <!-- 导出 -->
-      <div class="group" style="border-bottom:none">
-        <h2><span class="bar"></span><span data-i18n="g_export">导出</span></h2>
-
-        <div class="tabs" id="exp-tabs">
-          <button class="tab active" data-mode="social" data-i18n="tab_social">社交媒体</button>
-          <button class="tab" data-mode="print" data-i18n="tab_print">打印</button>
-          <button class="tab" data-mode="custom" data-i18n="tab_custom">自定义</button>
-        </div>
-
-        <!-- 社交 -->
-        <div class="exp-panel" data-panel="social">
-          <div class="preset-grid" id="social-grid"></div>
-        </div>
-
-        <!-- 打印 -->
-        <div class="exp-panel" data-panel="print" hidden>
-          <div class="field">
-            <label class="mini-label" data-i18n="f_framesize">画框尺寸</label>
-            <select id="papersize" class="sel"></select>
-          </div>
-          <div class="field">
-            <label class="mini-label" data-i18n="f_orient">方向</label>
-            <div class="seg" id="orient">
-              <button data-v="portrait" class="active" data-i18n="orient_portrait">竖版</button>
-              <button data-v="landscape" data-i18n="orient_landscape">横版</button>
-            </div>
-          </div>
-          <div class="field">
-            <label class="mini-label" data-i18n="f_quality">打印精度</label>
-            <div class="seg" id="dpi">
-              <button data-v="150" data-i18n="dpi_150">150 DPI · 远观</button>
-              <button data-v="300" class="active" data-i18n="dpi_300">300 DPI · 精细</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- 自定义 -->
-        <div class="exp-panel" data-panel="custom" hidden>
-          <div class="field">
-            <label class="mini-label" data-i18n="f_aspect">画面比例</label>
-            <select id="cust-aspect" class="sel">
-              <option value="orig" data-i18n="asp_orig">跟随原图</option>
-              <option value="1" data-i18n="asp_square">1 : 1 方形</option>
-              <option value="0.8" data-i18n="asp_45">4 : 5 竖版</option>
-              <option value="0.75" data-i18n="asp_34">3 : 4 竖版</option>
-              <option value="0.66667" data-i18n="asp_23">2 : 3 竖版</option>
-              <option value="1.33333" data-i18n="asp_43">4 : 3 横版</option>
-            </select>
-          </div>
-          <div class="field">
-            <div class="row"><label data-i18n="f_longedge">输出长边</label><span class="val" id="v-out">2000px</span></div>
-            <input type="range" id="outsize" min="800" max="4800" step="100" value="2000">
-          </div>
-        </div>
-
-        <div class="readout" id="readout">
-          <div class="big">先上传一张照片</div>
-          <div class="sub">导出规格会在这里显示</div>
-        </div>
-        <button class="btn btn-primary" id="export" style="margin-top:12px" data-i18n="btn_export">⤓ 导出 PNG</button>
-      </div>
-    </div>
-  </aside>
-</div>
-
-<!-- 登录弹窗 -->
-<div class="modal-mask" id="auth-mask">
-  <div class="modal modal-wrap">
-    <button class="modal-close" id="auth-close" aria-label="close">&times;</button>
-
-    <!-- 未登录：Google OAuth + 邮箱魔法链接 -->
-    <div id="auth-signin">
-      <h3 data-i18n2="signin_title">登录 / 注册</h3>
-      <p class="sub" data-i18n2="signin_sub">输入邮箱，我们会发一条登录链接给你。点开即登录，无需密码。</p>
-      <button class="btn-google" id="auth-google">
-        <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
-          <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.2l6.7-6.7C35.6 2.5 30.1 0 24 0 14.8 0 6.9 5.4 3 13.3l7.8 6C12.7 13.1 17.9 9.5 24 9.5z"/>
-          <path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8C43.5 37.3 46.5 31.3 46.5 24.5z"/>
-          <path fill="#FBBC05" d="M10.8 28.7A14.6 14.6 0 0 1 9.5 24c0-1.6.3-3.2.8-4.7L2.5 13.3A23.9 23.9 0 0 0 0 24c0 3.8.9 7.4 2.5 10.6l8.3-5.9z"/>
-          <path fill="#34A853" d="M24 48c6.1 0 11.2-2 14.9-5.5l-7.5-5.8c-2 1.4-4.6 2.3-7.4 2.3-6.1 0-11.3-3.7-13.2-8.8l-8.3 5.9C6.9 42.6 14.8 48 24 48z"/>
-        </svg>
-        <span data-i18n2="google_btn">使用 Google 登录</span>
-      </button>
-      <div class="or-divider"><span data-i18n2="or_divider">或</span></div>
-      <input type="email" id="auth-email" placeholder="you@example.com" autocomplete="email">
-      <button class="btn btn-primary" id="auth-send" style="width:100%" data-i18n2="signin_btn">发送登录链接</button>
-      <div class="msg" id="auth-msg"></div>
+    <a class="btn-primary" href="/app.html">Try it free →</a>
+    <div class="trust">
+      <span>✓ No sign-up to try</span>
+      <span>✓ Free with watermark</span>
+      <span>✓ Works on mobile</span>
     </div>
 
-    <!-- 已登录：显示状态 + 退出 -->
-    <div id="auth-signedin" style="display:none">
-      <h3 data-i18n2="account_title">我的账户</h3>
-      <div class="acct-row">
-        <span class="em" id="acct-email">—</span>
-        <span class="badge2" id="acct-status">—</span>
+    <!-- Before / After hero images -->
+    <div class="hero-ba">
+      <!-- ↓↓↓ 替换为真实照片：改成 <img src="images/hero-before.jpg" class="ba-img" alt="Original photo"> ↓↓↓ -->
+      <div class="ba-item">
+        <div class="ba-label">Before</div>
+        <div class="ba-img">ORIGINAL PHOTO</div>
       </div>
-      <button class="btn btn-ghost" id="auth-signout" style="width:100%" data-i18n2="signout_btn">退出登录</button>
+
+      <div class="ba-arrow">→</div>
+
+      <!-- ↓↓↓ 替换为生成成品图：改成 <img src="images/hero-after.jpg" class="ba-img after" alt="Riso art print"> ↓↓↓ -->
+      <div class="ba-item">
+        <div class="ba-label">After</div>
+        <div class="ba-img after">RISO ART PRINT</div>
+      </div>
     </div>
   </div>
-</div>
+</section>
 
-<!-- 付费弹窗 -->
-<div class="modal-mask" id="pay-mask">
-  <div class="modal modal-wrap">
-    <button class="modal-close" id="pay-close" aria-label="close">&times;</button>
-    <h3 data-i18n2="pay_title">解锁高清导出</h3>
-    <p class="sub" data-i18n2="pay_sub">高清 / 可打印导出需解锁。社交尺寸可免费导出（带水印）。</p>
-    <div id="pay-options"></div>
-    <div class="msg" id="pay-msg"></div>
+<!-- ===== GALLERY ===== -->
+<section id="gallery">
+  <div class="container">
+    <div class="section-label">Gallery</div>
+    <h2 class="section-title">From doodle to art</h2>
+    <p class="section-sub">Every style, every subject — flowers, portraits, kids' drawings, landscapes.</p>
+
+    <div class="gallery-grid">
+
+      <!-- Gallery pair 1 -->
+      <!-- ↓↓↓ 替换为真实图：把 .ba-img div 改成 <img src="images/g1-before.jpg" class="ba-img" alt=""> ↓↓↓ -->
+      <div class="gallery-pair">
+        <div class="gallery-pair-row">
+          <div class="ba-img">BEFORE</div>
+          <div class="ba-img after">AFTER</div>
+        </div>
+        <div class="gallery-pair-label"><span>Before</span><span>After</span></div>
+        <div class="gallery-caption">Kid's flower drawing</div>
+      </div>
+
+      <!-- Gallery pair 2 -->
+      <!-- ↓↓↓ 替换为真实图 ↓↓↓ -->
+      <div class="gallery-pair">
+        <div class="gallery-pair-row">
+          <div class="ba-img">BEFORE</div>
+          <div class="ba-img after">AFTER</div>
+        </div>
+        <div class="gallery-pair-label"><span>Before</span><span>After</span></div>
+        <div class="gallery-caption">Portrait photo</div>
+      </div>
+
+      <!-- Gallery pair 3 -->
+      <!-- ↓↓↓ 替换为真实图 ↓↓↓ -->
+      <div class="gallery-pair">
+        <div class="gallery-pair-row">
+          <div class="ba-img">BEFORE</div>
+          <div class="ba-img after">AFTER</div>
+        </div>
+        <div class="gallery-pair-label"><span>Before</span><span>After</span></div>
+        <div class="gallery-caption">Still life</div>
+      </div>
+
+      <!-- Gallery pair 4 -->
+      <!-- ↓↓↓ 替换为真实图 ↓↓↓ -->
+      <div class="gallery-pair">
+        <div class="gallery-pair-row">
+          <div class="ba-img">BEFORE</div>
+          <div class="ba-img after">AFTER</div>
+        </div>
+        <div class="gallery-pair-label"><span>Before</span><span>After</span></div>
+        <div class="gallery-caption">Landscape</div>
+      </div>
+
+    </div>
   </div>
-</div>
+</section>
+
+<!-- ===== HOW IT WORKS ===== -->
+<section id="how">
+  <div class="container">
+    <div class="section-label">How it works</div>
+    <h2 class="section-title">Three steps. That's it.</h2>
+    <p class="section-sub">No design skills needed. No app to download.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-icon">📸</div>
+        <div class="step-num">Step 1</div>
+        <h3>Upload your photo</h3>
+        <p>Drag and drop any image — a kid's drawing, a family photo, a flower from the garden.</p>
+      </div>
+      <div class="step">
+        <div class="step-icon">🎨</div>
+        <div class="step-num">Step 2</div>
+        <h3>Pick a style & colors</h3>
+        <p>Choose from Riso-inspired color palettes or mix your own. Adjust texture, grain, and outlines.</p>
+      </div>
+      <div class="step">
+        <div class="step-icon">⬇️</div>
+        <div class="step-num">Step 3</div>
+        <h3>Download your print</h3>
+        <p>Export in the exact size you need — Instagram post, wall frame, or print-ready 300 DPI file.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== PRICING ===== -->
+<section id="pricing">
+  <div class="container">
+    <div class="section-label">Pricing</div>
+    <h2 class="section-title">Start free. Unlock when you love it.</h2>
+    <p class="section-sub">No subscription. Pay once, own it forever.</p>
+
+    <div class="pricing-grid">
+
+      <!-- Free -->
+      <div class="price-card">
+        <div class="price-name">Free</div>
+        <div class="price-amount">$0</div>
+        <div class="price-period">forever</div>
+        <ul class="price-features">
+          <li>Full editor access</li>
+          <li>All styles & palettes</li>
+          <li>Social-size export (1080px)</li>
+          <li class="no">HD / print-ready export</li>
+          <li class="no">No watermark</li>
+        </ul>
+        <a class="btn-price" href="/app.html">Start free →</a>
+      </div>
+
+      <!-- Single HD -->
+      <div class="price-card">
+        <div class="price-name">Single HD</div>
+        <div class="price-amount"><sup>$</sup>3.90</div>
+        <div class="price-period">per export</div>
+        <ul class="price-features">
+          <li>One HD export (up to 5000px)</li>
+          <li>Print-ready 300 DPI</li>
+          <li>No watermark</li>
+          <li>Instant download</li>
+        </ul>
+        <a class="btn-price" href="/app.html">Try it free first →</a>
+      </div>
+
+      <!-- Lifetime -->
+      <div class="price-card best">
+        <div class="price-name">Lifetime</div>
+        <div class="price-amount"><sup>$</sup>19.90</div>
+        <div class="price-period">one-time · unlimited exports</div>
+        <ul class="price-features">
+          <li>Unlimited HD exports</li>
+          <li>Print-ready 300 DPI</li>
+          <li>No watermark — ever</li>
+          <li>All future features included</li>
+          <li>Pays off in ~5 prints</li>
+        </ul>
+        <a class="btn-price" href="/app.html">Get lifetime access →</a>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ===== FINAL CTA ===== -->
+<section class="final-cta">
+  <div class="container">
+    <h2>Your child's art deserves a frame.</h2>
+    <p>Try it free in under a minute — no account needed to get started.</p>
+    <a class="btn-primary" href="/app.html">Try it free →</a>
+    <div class="trust" style="margin-top:16px">
+      <span>✓ No sign-up to try</span>
+      <span>✓ Works on any photo</span>
+    </div>
+  </div>
+</section>
 
-<script>
-"use strict";
-/* =========================================================
-   复古肌理插画生成器
-   流水线: 缩放 → 对比度 → K-means聚类 → 区域平滑(众数滤波)
-           → 上采样label → 描边膨胀 → 喷溅噪声 → 颗粒/纸张纹理
-   设计要点: "分区"(慢,聚类)与"上色/肌理"(快,重绘)分离
-   ========================================================= */
-
-const $ = id => document.getElementById(id);
-const cv = $('cv'), ctx = cv.getContext('2d');
-
-// ---- 状态 ----
-// 预览始终用这个长边渲染，保证流畅；导出时才按目标尺寸重渲染
-const PREVIEW_LONG = 1400;
-
-const state = {
-  srcImg: null,        // 原始 Image
-  artLabels:null, artW:0, artH:0,   // 分区结果(art层,缓存,排版时不重算)
-  segW:0, segH:0,      // 聚类分辨率
-  outW:0, outH:0,      // 输出分辨率
-  labels:null,         // 上采样后的标签图 (outW*outH)
-  centroids:[],        // 聚类中心 RGB
-  palette:[],          // 每个标签映射的颜色 [r,g,b]
-  ink:[22,20,15],
-  bg:[233,227,212],
-  noise:null, noiseW:0, noiseH:0,   // 缓存噪声场
-  sheet:null,          // 当前预览的整页(标签+噪声+缩放系数)
-  segSeed:1,           // 聚类初始化种子；"重新分区"换种子得到不同方案
-  // 导出目标：用途决定比例与像素，而非让用户填像素
-  exp:{ mode:'social', aspect:3/4, long:1440, dpi:0, name:'小红书 · 竖版', tag:'3:4' },
-};
-
-// ---- 预设配色板 (Riso 风) ----
-const PRESETS = [
-  ['#e9e3d4','#c2d63f','#e845a8'],            // 荧光：奶白·青柠·品红 (参考图)
-  ['#f4ead2','#ff5a36','#1d4e89'],            // 朱红·普鲁士蓝
-  ['#efe7d6','#f0a202','#0d7377','#2d2a32'],  // 芥黄·孔雀绿
-  ['#f3eee2','#ff8fab','#3a86ff','#ffbe0b'],  // 糖果四色
-  ['#e8e2d0','#7cb518','#5c4d7d','#c1440e'],  // 大地·森林
-  ['#f5f0e1','#1b998b','#e84855','#2b2d42'],  // 复古海报
-  ['#ece4d2','#8338ec','#ff006e','#fb5607','#3a86ff'], // 五色霓虹
-];
-
-// =========================================================
-// 国际化（中 / EN），语言选择记忆在 localStorage（本地打开时生效）
-// =========================================================
-const I18N = {
-  zh:{
-    title:'复古肌理插画生成器', subtitle:'照片 → Riso 孔版风格装饰画',
-    drop_title:'上传 / 拖入照片', drop_sub:'点击选择，或把图片拖到这里', drop_change:'↻ 换一张照片',
-    g_seg:'分区生成', f_colors:'色块数量', f_contrast:'对比度', f_smooth:'区域平滑', btn_reseg:'↻ 重新分区',
-    g_outline:'描边与肌理', f_thick:'轮廓粗细', f_rough:'边缘毛糙（喷溅）', f_grain:'颗粒肌理', f_paper:'纸张纹理',
-    g_colors:'色彩控制', btn_random:'🎲 随机配色', f_inkcolor:'轮廓颜色', f_papercolor:'纸张颜色',
-    g_margin:'画面留白', f_margin:'留白边距',
-    hint_margin:'边距用「纸张颜色」填充。想要纯净留白把纸张设为白色；想让背景延伸到边缘，把纸张设成接近背景色。画面比例由下方「导出」按用途自动决定。',
-    g_export:'导出', tab_social:'社交媒体', tab_print:'打印', tab_custom:'自定义',
-    f_framesize:'画框尺寸', f_orient:'方向', orient_portrait:'竖版', orient_landscape:'横版',
-    f_quality:'打印精度', dpi_150:'150 DPI · 远观', dpi_300:'300 DPI · 精细',
-    f_aspect:'画面比例', asp_orig:'跟随原图', asp_square:'1 : 1 方形', asp_45:'4 : 5 竖版',
-    asp_34:'3 : 4 竖版', asp_23:'2 : 3 竖版', asp_43:'4 : 3 横版',
-    f_longedge:'输出长边', btn_export:'⤓ 导出 PNG', pill_sample:'载入示例',
-    empty_b:'从左上角上传一张照片', empty_l2:'花卉、人像、静物、风景都可以', empty_l3:'建议主体清晰、背景简单',
-    load_seg:'正在分区…', load_export:'正在导出高清图…',
-    ro_empty_b:'先上传一张照片', ro_empty_s:'导出规格会在这里显示',
-    ro_print_sub:'可印 {w} × {h} cm（{name}）', ro_capped:' · 大尺寸已优化精度，远观清晰',
-    ro_social_sub:'{name} · 适配手机屏幕', ro_custom_sub:'印刷 ≈ 300DPI {a300} · 150DPI {a150}',
-    alert_export:'导出失败，请重试',
-    export_denied:'额度不足或扣减失败',
-  },
-  en:{
-    title:'Retro Texture Illustrator', subtitle:'Photo → Riso-style art print',
-    drop_title:'Upload / drop a photo', drop_sub:'Click to choose, or drag an image here', drop_change:'↻ Change photo',
-    g_seg:'Segmentation', f_colors:'Color regions', f_contrast:'Contrast', f_smooth:'Region smoothing', btn_reseg:'↻ Re-segment',
-    g_outline:'Outline & Texture', f_thick:'Outline weight', f_rough:'Edge roughness', f_grain:'Grain', f_paper:'Paper texture',
-    g_colors:'Colors', btn_random:'🎲 Randomize', f_inkcolor:'Outline color', f_papercolor:'Paper color',
-    g_margin:'Margin', f_margin:'Margin width',
-    hint_margin:'The border is filled with the paper color. For clean borders set paper to white; to let the background reach the edge, set paper close to the background color. Aspect ratio is set automatically by the Export section below.',
-    g_export:'Export', tab_social:'Social', tab_print:'Print', tab_custom:'Custom',
-    f_framesize:'Frame size', f_orient:'Orientation', orient_portrait:'Portrait', orient_landscape:'Landscape',
-    f_quality:'Print quality', dpi_150:'150 DPI · distance', dpi_300:'300 DPI · fine',
-    f_aspect:'Aspect ratio', asp_orig:'Match photo', asp_square:'1 : 1 Square', asp_45:'4 : 5 Portrait',
-    asp_34:'3 : 4 Portrait', asp_23:'2 : 3 Portrait', asp_43:'4 : 3 Landscape',
-    f_longedge:'Long edge', btn_export:'⤓ Export PNG', pill_sample:'Load sample',
-    empty_b:'Upload a photo from the top-left', empty_l2:'Flowers, portraits, still life, landscapes', empty_l3:'Best with a clear subject and simple background',
-    load_seg:'Segmenting…', load_export:'Rendering high-res export…',
-    ro_empty_b:'Upload a photo first', ro_empty_s:'Export specs will show here',
-    ro_print_sub:'Prints {w} × {h} cm ({name})', ro_capped:' · optimized for large size, sharp at distance',
-    ro_social_sub:'{name} · fits phone screens', ro_custom_sub:'Print ≈ 300DPI {a300} · 150DPI {a150}',
-    alert_export:'Export failed, please try again',
-    export_denied:'Not enough credits, or charge failed',
-  },
-};
-let lang='zh';
-try{ const s=localStorage.getItem('ri_lang'); if(s==='zh'||s==='en') lang=s; }catch(e){}
-function t(key, vars){
-  let s = (I18N[lang] && I18N[lang][key]!=null) ? I18N[lang][key] : (I18N.zh[key]!=null?I18N.zh[key]:key);
-  if(vars) for(const k in vars) s = s.split('{'+k+'}').join(vars[k]);
-  return s;
-}
-function applyLang(){
-  document.documentElement.lang = lang==='zh'?'zh-CN':'en';
-  document.querySelectorAll('[data-i18n]').forEach(el=>{ el.textContent = t(el.dataset.i18n); });
-  $('lang-toggle').textContent = lang==='zh' ? 'EN' : '中';
-  updateDropLabel();        // 有图时显示「换一张」，覆盖默认文案
-  buildSocialGrid();        // 重建带本地化文案的卡片
-  buildPaperOptions();      // 重建画框下拉
-  if($('loader').classList.contains('show')) $('loadtext').textContent = t('load_seg');
-  applyExport();            // 刷新 state.exp.name 与读数
-}
-// 上传条文案：没图=「上传」，有图=「换一张」
-function updateDropLabel(){
-  const b=document.querySelector('#drop b');
-  if(b) b.textContent = state.srcImg ? t('drop_change') : t('drop_title');
-}
-function setLang(l){ lang=l; try{localStorage.setItem('ri_lang',l);}catch(e){} applyLang(); }
-
-// ---- 工具 ----
-const hex2rgb = h => [parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];
-const rgb2hex = c => '#'+c.map(v=>('0'+Math.max(0,Math.min(255,v|0)).toString(16)).slice(-2)).join('');
-const clamp = (v,a,b)=>v<a?a:v>b?b:v;
-const fract = x => x - Math.floor(x);   // 取小数部分（颗粒/喷溅噪声用）
-
-// =========================================================
-// 1. 读取图片
-// =========================================================
-function loadFile(file){
-  if(!file || !file.type.startsWith('image/')) return;
-  const url = URL.createObjectURL(file);
-  const img = new Image();
-  img.onload = ()=>{ state.srcImg = img; segment(true); };
-  img.src = url;
-}
-
-// 生成一张程序化示例图（无需外部资源）
-function makeSample(){
-  const c = document.createElement('canvas');
-  c.width=520; c.height=720; const g=c.getContext('2d');
-  const bg=g.createLinearGradient(0,0,520,720);
-  bg.addColorStop(0,'#2b3a67'); bg.addColorStop(1,'#7b2d8e');
-  g.fillStyle=bg; g.fillRect(0,0,520,720);
-  // 花茎
-  g.strokeStyle='#1f5c2e'; g.lineWidth=22; g.lineCap='round';
-  g.beginPath(); g.moveTo(260,720); g.quadraticCurveTo(230,420,260,300); g.stroke();
-  // 叶子
-  g.fillStyle='#2e7d32';
-  for(const[x,y,r,a]of[[200,500,70,-0.6],[330,440,62,0.7]]){
-    g.save();g.translate(x,y);g.rotate(a);g.beginPath();
-    g.ellipse(0,0,r,r*0.42,0,0,7);g.fill();g.restore();
-  }
-  // 花瓣
-  g.fillStyle='#f7d6e0';
-  for(let i=0;i<6;i++){g.save();g.translate(260,250);g.rotate(i*Math.PI/3);
-    g.beginPath();g.ellipse(0,-70,46,90,0,0,7);g.fill();g.restore();}
-  g.fillStyle='#f6c453';g.beginPath();g.arc(260,250,46,0,7);g.fill();
-  const img=new Image();
-  img.onload=()=>{state.srcImg=img;segment(true);};
-  img.src=c.toDataURL();
-}
-
-// =========================================================
-// 2. 分区：缩放 + 对比度 + K-means + 平滑
-// =========================================================
-function segment(resetPalette){
-  if(!state.srcImg) return;
-  showLoader(t('load_seg'));
-  // 让重计算在下一帧，保证 loader 显示
-  requestAnimationFrame(()=>requestAnimationFrame(()=>{
-    const img = state.srcImg;
-    const k = +$('colors').value;
-    const contrast = +$('contrast').value;
-    const smooth = +$('smooth').value;
-
-    // 聚类分辨率（控制速度），长边 ~ 420
-    const segMax = 420;
-    let sw = img.width, sh = img.height;
-    const sScale = Math.min(1, segMax/Math.max(sw,sh));
-    sw = Math.max(1,Math.round(sw*sScale));
-    sh = Math.max(1,Math.round(sh*sScale));
-
-    const tmp = document.createElement('canvas');
-    tmp.width=sw; tmp.height=sh;
-    const tg = tmp.getContext('2d');
-    tg.drawImage(img,0,0,sw,sh);
-    const data = tg.getImageData(0,0,sw,sh).data;
-
-    // 对比度调整
-    const px = sw*sh;
-    const rgb = new Float32Array(px*3);
-    for(let i=0;i<px;i++){
-      for(let c=0;c<3;c++){
-        let v = data[i*4+c];
-        v = (v/255 - 0.5)*contrast + 0.5;   // 围绕中灰拉伸
-        rgb[i*3+c] = clamp(v*255,0,255);
-      }
-    }
-
-    // K-means
-    const {labels, centroids} = kmeans(rgb, px, k, 14, state.segSeed);
-
-    // 区域平滑（众数滤波，多次迭代）
-    let lab = labels;
-    for(let s=0;s<smooth;s++) lab = modeFilter(lab, sw, sh);
-
-    // 缓存分区结果（art 层）：之后排版/上色不再重算聚类
-    state.artLabels = lab; state.artW = sw; state.artH = sh;
-    state.centroids = centroids;
-    const k2 = centroids.length;
-    if(resetPalette || state.palette.length !== k2){
-      state.palette = centroids.map(c=>[c[0]|0,c[1]|0,c[2]|0]);
-      applyPresetColors(PRESETS[0]);
-    }
-    buildSwatches();
-    recompose();        // 排版（缩放/留白）+ 渲染
-    updateReadout();
-    updateDropLabel();  // 有图后上传条变「换一张」
-    hideLoader();
-  }));
-}
-
-function kmeans(rgb, n, k, iters, seed){
-  const rnd = mulberry32((seed>>>0) || 1);
-  const cent = new Float32Array(k*3);
-  // k-means++ 初始化（带种子）：换种子 → 不同初始点 → 收敛到不同分区方案
-  let f=(rnd()*n)|0;
-  cent[0]=rgb[f*3]; cent[1]=rgb[f*3+1]; cent[2]=rgb[f*3+2];
-  const d2=new Float32Array(n);
-  for(let c=1;c<k;c++){
-    let sum=0;
-    for(let i=0;i<n;i++){
-      const r=rgb[i*3],g=rgb[i*3+1],b=rgb[i*3+2];
-      let best=1e18;
-      for(let j=0;j<c;j++){
-        const dr=r-cent[j*3],dg=g-cent[j*3+1],db=b-cent[j*3+2];
-        const dd=dr*dr+dg*dg+db*db; if(dd<best)best=dd;
-      }
-      d2[i]=best; sum+=best;
-    }
-    // 按到最近中心的距离平方为概率，挑下一个中心
-    let target=rnd()*sum, idx=n-1;
-    for(let i=0;i<n;i++){ target-=d2[i]; if(target<=0){idx=i;break;} }
-    cent[c*3]=rgb[idx*3]; cent[c*3+1]=rgb[idx*3+1]; cent[c*3+2]=rgb[idx*3+2];
-  }
-  const labels = new Uint8Array(n);
-  const sum = new Float32Array(k*3), cnt = new Uint32Array(k);
-  for(let it=0;it<iters;it++){
-    sum.fill(0); cnt.fill(0);
-    for(let i=0;i<n;i++){
-      const r=rgb[i*3],g=rgb[i*3+1],b=rgb[i*3+2];
-      let best=0,bd=1e18;
-      for(let j=0;j<k;j++){
-        const dr=r-cent[j*3],dg=g-cent[j*3+1],db=b-cent[j*3+2];
-        const d=dr*dr+dg*dg+db*db;
-        if(d<bd){bd=d;best=j;}
-      }
-      labels[i]=best;
-      sum[best*3]+=r;sum[best*3+1]+=g;sum[best*3+2]+=b;cnt[best]++;
-    }
-    for(let j=0;j<k;j++){
-      if(cnt[j]){cent[j*3]=sum[j*3]/cnt[j];cent[j*3+1]=sum[j*3+1]/cnt[j];cent[j*3+2]=sum[j*3+2]/cnt[j];}
-    }
-  }
-  const centroids=[];
-  for(let j=0;j<k;j++) centroids.push([cent[j*3],cent[j*3+1],cent[j*3+2]]);
-  return {labels, centroids};
-}
-
-// 众数滤波（3x3）——清理杂点、平滑边界
-function modeFilter(lab, w, h){
-  const out = new Uint8Array(lab.length);
-  const counts = new Uint16Array(16);
-  for(let y=0;y<h;y++){
-    for(let x=0;x<w;x++){
-      let touched=[];
-      for(let dy=-1;dy<=1;dy++){
-        const yy=y+dy; if(yy<0||yy>=h)continue;
-        for(let dx=-1;dx<=1;dx++){
-          const xx=x+dx; if(xx<0||xx>=w)continue;
-          const l=lab[yy*w+xx]; counts[l]++; touched.push(l);
-        }
-      }
-      let best=lab[y*w+x],bc=0;
-      for(const l of touched){ if(counts[l]>bc){bc=counts[l];best=l;} }
-      for(const l of touched) counts[l]=0;
-      out[y*w+x]=best;
-    }
-  }
-  return out;
-}
-
-// =========================================================
-// 3. 排版：把分区结果放进一张"纸"里，按比例与留白生成整页
-//    longEdge 决定分辨率；sf=longEdge/PREVIEW_LONG 用于让描边/肌理
-//    在任意分辨率下保持相同的视觉比例（所见即所得）
-// =========================================================
-function buildSheet(longEdge){
-  const aw=state.artW, ah=state.artH;
-  const e=state.exp;
-  const artAR=aw/ah;
-  const sheetAR = (e.aspect==='orig'||e.aspect==null) ? artAR : e.aspect;
-
-  let sw,sh;
-  if(sheetAR>=1){ sw=longEdge; sh=Math.round(longEdge/sheetAR); }
-  else{ sh=longEdge; sw=Math.round(longEdge*sheetAR); }
-
-  const sf=longEdge/PREVIEW_LONG;
-  const marginPct=+$('margin').value/100;
-  const mg=Math.round(longEdge*marginPct);
-  const cw=Math.max(1,sw-2*mg), ch=Math.max(1,sh-2*mg);
-
-  let dw,dh;
-  if(artAR > cw/ch){ dw=cw; dh=Math.max(1,Math.round(cw/artAR)); }
-  else{ dh=ch; dw=Math.max(1,Math.round(ch*artAR)); }
-  const ox=Math.round((sw-dw)/2), oy=Math.round((sh-dh)/2);
-
-  const big=new Uint8Array(sw*sh).fill(255);   // 255 = 纸张/留白
-  for(let y=0;y<dh;y++){
-    const ay=Math.min(ah-1,(y*ah/dh)|0);
-    for(let x=0;x<dw;x++){
-      const ax=Math.min(aw-1,(x*aw/dw)|0);
-      big[(oy+y)*sw+(ox+x)]=state.artLabels[ay*aw+ax];
-    }
-  }
-  const noise=makeNoise(sw,sh, Math.max(1.2, 2*sf));
-  return {labels:big, w:sw, h:sh, noise, sf};
-}
-
-// 重排版（比例/留白变化时调用，预览分辨率，可缓存复用）
-function recompose(){
-  if(!state.artLabels) return;
-  state.sheet=buildSheet(PREVIEW_LONG);
-  repaint();
-}
-// 重绘（仅颜色/描边/肌理变化时调用，复用已缓存的 sheet，最快）
-function repaint(){
-  if(!state.sheet) return;
-  paint(state.sheet, cv);
-  $('wrap').style.display='block';
-  $('hint').style.display='none';
-  updateBadge();
-}
-
-// 噪声：小尺度 value-noise，做喷溅/颗粒
-// 固定种子 PRNG，保证同尺寸下纹理稳定（拖滑块不抖动）；cell 随分辨率缩放，颗粒视觉大小一致
-function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
-function makeNoise(w,h,cell){
-  const rnd=mulberry32(0x9e3779b1);
-  const scale=cell;
-  const gw=Math.ceil(w/scale)+2, gh=Math.ceil(h/scale)+2;
-  const grid=new Float32Array(gw*gh);
-  for(let i=0;i<grid.length;i++) grid[i]=rnd();
-  const noise=new Float32Array(w*h);
-  for(let y=0;y<h;y++){
-    const gy=y/scale, y0=gy|0, fy=gy-y0;
-    for(let x=0;x<w;x++){
-      const gx=x/scale, x0=gx|0, fx=gx-x0;
-      const a=grid[y0*gw+x0], b=grid[y0*gw+x0+1];
-      const c=grid[(y0+1)*gw+x0], d=grid[(y0+1)*gw+x0+1];
-      const top=a+(b-a)*fx, bot=c+(d-c)*fx;
-      noise[y*w+x]=top+(bot-top)*fy;
-    }
-  }
-  return noise;
-}
-
-// =========================================================
-// 4. 渲染：填色 + 描边 + 喷溅 + 颗粒 + 纸张（实时）
-// =========================================================
-function paint(sheet, canvas){
-  const {labels:lab, w, h, noise, sf} = sheet;
-  const pal=state.palette, ink=state.ink, bg=state.bg;
-  const c=canvas.getContext('2d');
-
-  // 描边/喷溅按分辨率缩放，保证不同尺寸下视觉比例一致
-  const thick=Math.round((+$('thick').value)*sf);
-  const rough=+$('rough').value/100;
-  const grain=+$('grain').value/100;
-  const paperT=+$('paper').value/100;
-
-  canvas.width=w; canvas.height=h;
-  const out=c.createImageData(w,h);
-  const o=out.data;
-
-  // 4a. 填底色（255=纸张）
-  for(let i=0;i<w*h;i++){
-    const cc=pal[lab[i]]||bg;
-    o[i*4]=cc[0];o[i*4+1]=cc[1];o[i*4+2]=cc[2];o[i*4+3]=255;
-  }
-
-  // 4b. 边缘检测（label 交界）。255=留白：不参与、也不与之产生交界
-  const edge=new Uint8Array(w*h);
-  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
-    const i=y*w+x,l=lab[i];
-    if(l===255) continue;
-    let e=0;
-    if(x+1<w){const n=lab[i+1]; if(n!==l&&n!==255)e=1;}
-    if(!e&&y+1<h){const n=lab[i+w]; if(n!==l&&n!==255)e=1;}
-    if(!e&&x>0){const n=lab[i-1]; if(n!==l&&n!==255)e=1;}
-    if(!e&&y>0){const n=lab[i-w]; if(n!==l&&n!==255)e=1;}
-    edge[i]=e;
-  }
-
-  // 4c. 距离场：BFS 膨胀，记录到边缘的步数
-  const dist=new Int16Array(w*h).fill(-1);
-  let frontier=[];
-  for(let i=0;i<w*h;i++) if(edge[i]){dist[i]=0;frontier.push(i);}
-  const band = thick + Math.round(thick*0.9) + Math.max(2, Math.round(4*sf));
-  for(let d=0; d<band && frontier.length; d++){
-    const next=[];
-    for(const i of frontier){
-      const x=i%w,y=(i/w)|0;
-      if(x+1<w&&dist[i+1]<0){dist[i+1]=d+1;next.push(i+1);}
-      if(x>0&&dist[i-1]<0){dist[i-1]=d+1;next.push(i-1);}
-      if(y+1<h&&dist[i+w]<0){dist[i+w]=d+1;next.push(i+w);}
-      if(y>0&&dist[i-w]<0){dist[i-w]=d+1;next.push(i-w);}
-    }
-    frontier=next;
-  }
-
-  // 4d. 上墨：实心核 + 噪声调制的喷溅边缘
-  for(let i=0;i<w*h;i++){
-    const dd=dist[i];
-    if(dd<0||dd>band) continue;
-    let inkProb;
-    if(dd<=thick){
-      inkProb = 1 - rough*0.25*(noise[i]);
-    }else{
-      const t=(dd-thick)/(band-thick+0.001);
-      inkProb = (1-t)*(1-t) * (0.4+rough);
-    }
-    if(noise[i] < inkProb){
-      o[i*4]=ink[0];o[i*4+1]=ink[1];o[i*4+2]=ink[2];o[i*4+3]=255;
-    }
-  }
-
-  // 4e. 颗粒肌理 + 纸张（颗粒按 sf 采样，视觉粒度一致）
-  if(grain>0||paperT>0){
-    for(let i=0;i<w*h;i++){
-      if(grain>0){
-        const x=i%w,y=(i/w)|0;
-        const gi=((y/sf)|0)*4099+((x/sf)|0);
-        const n2 = fract(Math.sin(gi*12.9898+78.233)*43758.5453);
-        const g=(n2-0.5)*grain*70;
-        o[i*4]=clamp(o[i*4]+g,0,255);
-        o[i*4+1]=clamp(o[i*4+1]+g,0,255);
-        o[i*4+2]=clamp(o[i*4+2]+g,0,255);
-      }
-      if(paperT>0){
-        const p=(noise[i]-0.5)*paperT*40;
-        o[i*4]=clamp(o[i*4]-p*0.5,0,255);
-        o[i*4+1]=clamp(o[i*4+1]-p*0.5,0,255);
-        o[i*4+2]=clamp(o[i*4+2]-p*0.4,0,255);
-      }
-    }
-  }
-
-  c.putImageData(out,0,0);
-}
-
-// =========================================================
-// 5. 配色 UI
-// =========================================================
-function buildSwatches(){
-  const box=$('swatches'); box.innerHTML='';
-  state.palette.forEach((c,i)=>{
-    const sw=document.createElement('label'); sw.className='sw';
-    sw.style.background=rgb2hex(c);
-    sw.innerHTML=`<span class="n">${i+1}</span>
-      <input type="color" value="${rgb2hex(c)}">`;
-    sw.querySelector('input').addEventListener('input',e=>{
-      state.palette[i]=hex2rgb(e.target.value);
-      sw.style.background=e.target.value;
-      repaint();
-    });
-    box.appendChild(sw);
-  });
-}
-
-function applyPresetColors(hexArr){
-  // 按聚类中心明度排序，依次套用预设颜色（暗→亮 对应 预设顺序）
-  const k=state.centroids.length;
-  const order=state.centroids.map((c,i)=>({i,l:0.3*c[0]+0.59*c[1]+0.11*c[2]}))
-                            .sort((a,b)=>a.l-b.l);
-  const cols=hexArr.map(hex2rgb);
-  order.forEach((o,rank)=>{
-    state.palette[o.i]=cols[rank % cols.length].slice();
-  });
-}
-
-function buildPresets(){
-  const box=$('presets'); box.innerHTML='';
-  PRESETS.forEach(p=>{
-    const el=document.createElement('div'); el.className='preset';
-    p.forEach(h=>{const i=document.createElement('i');i.style.background=h;el.appendChild(i);});
-    el.addEventListener('click',()=>{ if(!state.artLabels)return; applyPresetColors(p); buildSwatches(); repaint();});
-    box.appendChild(el);
-  });
-}
-
-// =========================================================
-// 6. 事件绑定
-// =========================================================
-function bindSlider(id, vid, fmt, onChange){
-  const el=$(id), v=$(vid);
-  el.addEventListener('input',()=>{ v.textContent=fmt(el.value); onChange&&onChange(); });
-}
-let renderTimer=null;
-const liveRepaint=()=>{ clearTimeout(renderTimer); renderTimer=setTimeout(repaint,40); };
-let composeTimer=null;
-const liveCompose=()=>{ clearTimeout(composeTimer); composeTimer=setTimeout(recompose,50); };
-
-// —— 影响分区（需重新聚类）——
-bindSlider('colors','v-colors',v=>v);
-bindSlider('contrast','v-contrast',v=>(+v).toFixed(1)+'×');
-bindSlider('smooth','v-smooth',v=>v);
-$('colors').addEventListener('change',()=>segment(false));
-$('contrast').addEventListener('change',()=>segment(false));
-$('smooth').addEventListener('change',()=>segment(false));
-$('resegment').addEventListener('click',()=>{ state.segSeed=(state.segSeed+0x9e3779b9)>>>0; segment(false); });
-
-// —— 仅重绘（颜色/描边/肌理，复用 sheet，最快）——
-bindSlider('thick','v-thick',v=>v,liveRepaint);
-bindSlider('rough','v-rough',v=>v+'%',liveRepaint);
-bindSlider('grain','v-grain',v=>v+'%',liveRepaint);
-bindSlider('paper','v-paper',v=>v+'%',liveRepaint);
-
-// —— 重排版（留白变化，重建标签图）——
-bindSlider('margin','v-margin',v=>v+'%',liveCompose);
-
-$('ink').addEventListener('input',e=>{state.ink=hex2rgb(e.target.value);
-  $('ink-chip').style.background=e.target.value;$('ink-label').textContent=e.target.value;repaint();});
-$('bg').addEventListener('input',e=>{state.bg=hex2rgb(e.target.value);
-  $('bg-chip').style.background=e.target.value;$('bg-label').textContent=e.target.value;
-  document.querySelector('.canvas-wrap').style.background=e.target.value;repaint();});
-
-$('random').addEventListener('click',()=>{
-  if(!state.artLabels)return;
-  state.palette=state.palette.map(()=>[Math.random()*255|0,Math.random()*255|0,Math.random()*255|0]);
-  buildSwatches(); repaint();
-});
-
-// =========================================================
-// 7. 导出：用途 → 比例/像素，并把 DPI 写入 PNG
-// =========================================================
-const SOCIAL=[
-  {zh:'小红书 · 竖版',   en:'Xiaohongshu · Portrait', tag:'3:4',  ratio:3/4,  long:1440},
-  {zh:'方形 · 通用',     en:'Square · Universal',     tag:'1:1',  ratio:1,    long:1080},
-  {zh:'Instagram 竖图',  en:'Instagram · Portrait',   tag:'4:5',  ratio:4/5,  long:1350},
-  {zh:'朋友圈 / Story',  en:'Story / Reels',          tag:'9:16', ratio:9/16, long:1920},
-  {zh:'壁纸 · 横屏',     en:'Wallpaper · Landscape',  tag:'16:9', ratio:16/9, long:2560},
-];
-const PAPERS=[
-  {zh:'A4（21 × 29.7 cm）', en:'A4 (21 × 29.7 cm)', w:21,   h:29.7},
-  {zh:'A3（29.7 × 42 cm）', en:'A3 (29.7 × 42 cm)', w:29.7, h:42},
-  {zh:'A2（42 × 59.4 cm）', en:'A2 (42 × 59.4 cm)', w:42,   h:59.4},
-  {zh:'30 × 40 cm 画框',    en:'30 × 40 cm Frame',  w:30,   h:40},
-  {zh:'40 × 50 cm 画框',    en:'40 × 50 cm Frame',  w:40,   h:50},
-  {zh:'50 × 70 cm 画框',    en:'50 × 70 cm Frame',  w:50,   h:70},
-  {zh:'60 × 80 cm 画框',    en:'60 × 80 cm Frame',  w:60,   h:80},
-];
-let socialSel=0, printDpi=300, printOrient='portrait', expMode='social';
-
-// 社交预设卡片（按当前语言重建，保留选中态）
-function buildSocialGrid(){
-  const box=$('social-grid'); box.innerHTML='';
-  SOCIAL.forEach((p,i)=>{
-    const el=document.createElement('button'); el.className='preset-btn'+(i===socialSel?' active':'');
-    const L=22, w=p.ratio>=1?L:Math.round(L*p.ratio), h=p.ratio>=1?Math.round(L/p.ratio):L;
-    el.innerHTML=`<span class="preset-left">
-        <span class="pratio" style="width:${w}px;height:${h}px"></span>
-        <span class="pname">${p[lang]}</span></span>
-      <span class="pdim">${p.tag}</span>`;
-    el.addEventListener('click',()=>{ socialSel=i;
-      [...box.children].forEach((c,j)=>c.classList.toggle('active',j===i)); applyExport(); });
-    box.appendChild(el);
-  });
-}
-// 画框尺寸下拉（按当前语言重建，保留选中项）
-function buildPaperOptions(){
-  const sel=$('papersize'); const cur=sel.value; sel.innerHTML='';
-  PAPERS.forEach((p,i)=>{ const o=document.createElement('option'); o.value=i; o.textContent=p[lang]; sel.appendChild(o); });
-  if(cur) sel.value=cur;
-}
-// 分段按钮
-function segBind(id, cb){
-  $(id).addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b)return;
-    [...$(id).children].forEach(c=>c.classList.toggle('active',c===b)); cb(b.dataset.v); });
-}
-segBind('dpi', v=>{ printDpi=+v; applyExport(); });
-segBind('orient', v=>{ printOrient=v; applyExport(); });
-$('papersize').addEventListener('change',applyExport);
-bindSlider('outsize','v-out',v=>v+'px', applyExport);
-$('cust-aspect').addEventListener('change',applyExport);
-
-// Tab 切换
-$('exp-tabs').addEventListener('click',ev=>{
-  const b=ev.target.closest('.tab'); if(!b)return; expMode=b.dataset.mode;
-  [...$('exp-tabs').children].forEach(el=>el.classList.toggle('active',el===b));
-  document.querySelectorAll('.exp-panel').forEach(p=>p.hidden = p.dataset.panel!==expMode);
-  applyExport();
-});
-
-// 把当前模式选择写进 state.exp；比例变了才重排版，否则只更新读数
-function applyExport(){
-  const e=state.exp, prevAspect=e.aspect;
-  if(expMode==='social'){
-    const p=SOCIAL[socialSel];
-    e.mode='social'; e.aspect=p.ratio; e.long=p.long; e.dpi=0; e.name=p[lang]; e.tag=p.tag;
-  }else if(expMode==='print'){
-    const p=PAPERS[+$('papersize').value];
-    let pw=p.w, ph=p.h; if(printOrient==='landscape'){ const tmp=pw; pw=ph; ph=tmp; }
-    e.mode='print'; e.aspect=pw/ph; e.dpi=printDpi;
-    e.long=Math.round(Math.max(pw,ph)/2.54*printDpi);
-    e.name=p[lang].split(/[（(]/)[0].trim(); e.tag=`${pw}x${ph}cm`;
-  }else{
-    const a=$('cust-aspect').value;
-    e.mode='custom'; e.aspect = a==='orig'?'orig':parseFloat(a);
-    e.long=+$('outsize').value; e.dpi=0; e.name=t('tab_custom'); e.tag='custom';
-  }
-  if(state.artLabels && e.aspect!==prevAspect) recompose();
-  updateReadout();
-}
-
-// 导出像素尺寸（按当前比例 + 目标长边）。超大尺寸自动限幅：
-// 降低有效 DPI 但保持物理尺寸不变，避免浏览器卡死
-function exportDims(){
-  const e=state.exp, aw=state.artW||3, ah=state.artH||4;
-  const ar = e.aspect==='orig' ? aw/ah : e.aspect;
-  const CAP=5000;
-  let long=e.long, dpi=e.dpi, capped=false;
-  if(long>CAP){ const s=CAP/long; dpi = dpi>0?Math.round(dpi*s):0; long=CAP; capped=true; }
-  let w,h;
-  if(ar>=1){ w=long; h=Math.round(long/ar); } else { h=long; w=Math.round(long*ar); }
-  return {w,h,dpi,capped};
-}
-function updateBadge(){
-  const {w,h,dpi}=exportDims();
-  $('badge').textContent = dpi>0 ? `${w} × ${h} · ${dpi}DPI` : `${w} × ${h}`;
-}
-function updateReadout(){
-  const e=state.exp, {w,h,dpi,capped}=exportDims();
-  const big=document.querySelector('#readout .big'), sub=document.querySelector('#readout .sub');
-  if(!state.artLabels){ big.textContent=t('ro_empty_b'); sub.textContent=t('ro_empty_s'); return; }
-  if(e.mode==='print'){
-    big.innerHTML=`<b>${w} × ${h}</b> px · ${dpi} DPI`;
-    sub.textContent=t('ro_print_sub',{w:(w/dpi*2.54).toFixed(0),h:(h/dpi*2.54).toFixed(0),name:e.name})
-      + (capped?t('ro_capped'):'');
-  }else if(e.mode==='social'){
-    big.innerHTML=`<b>${w} × ${h}</b> px · ${e.tag}`;
-    sub.textContent=t('ro_social_sub',{name:e.name});
-  }else{
-    big.innerHTML=`<b>${w} × ${h}</b> px`;
-    const at=d=>`${(w/d*2.54).toFixed(0)}×${(h/d*2.54).toFixed(0)}cm`;
-    sub.textContent=t('ro_custom_sub',{a300:at(300),a150:at(150)});
-  }
-}
-
-// 水印（只给免费社交图加，预览和付费高清图都不加）
-function drawWatermark(canvas){
-  const c=canvas.getContext('2d');
-  const w=canvas.width, h=canvas.height;
-  const fs=Math.max(14, Math.round(Math.min(w,h)*0.038));
-  const pad=Math.round(fs*0.7);
-  c.save();
-  c.font=`800 ${fs}px "Helvetica Neue",-apple-system,"PingFang SC","Microsoft YaHei",sans-serif`;
-  c.textAlign='right'; c.textBaseline='bottom';
-  c.fillStyle='rgba(0,0,0,0.32)'; c.fillText('stylejoy', w-pad+2, h-pad+2);
-  c.fillStyle='rgba(255,255,255,0.92)'; c.fillText('stylejoy', w-pad, h-pad);
-  c.restore();
-}
-
-// 导出：社交=免费带水印；打印/自定义=付费无水印（先门禁，再渲染，再扣额度，再下载）
-async function doExport(){
-  if(!state.artLabels) return;
-  const free = (expMode === 'social');   // 社交尺寸免费，其余付费高清
-
-  // 付费档：先过门禁（未登录→登录；无权限→付费弹窗）
-  if(!free){
-    const auth = window.kidartAuth;
-    if(!auth || !auth.isLoggedIn){ if(auth&&auth.open) auth.open(); else alert('Please sign in'); return; }
-    if(!auth.hasAccess || !auth.hasAccess()){ if(auth.openPaywall) auth.openPaywall(); return; }
-  }
-
-  showLoader(t('load_export'));
-  await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
-  try{
-    const {w,h,dpi}=exportDims();
-    const sheet=buildSheet(Math.max(w,h));
-    const off=document.createElement('canvas');
-    paint(sheet, off);
-    if(free) drawWatermark(off);                 // 免费图加水印
-    const blob=await new Promise(res=>off.toBlob(res,'image/png'));
-    let bytes=new Uint8Array(await blob.arrayBuffer());
-    if(!free && dpi>0) bytes=injectDPI(bytes, dpi);
-
-    // 付费档：图已渲好 → 服务端扣额度（lifetime 不扣 / single 扣 1）→ 成功才下载
-    if(!free){
-      const ok = await window.kidartAuth.spend({ w, h, dpi: dpi||0, mode: state.exp.mode, tag: state.exp.tag });
-      if(!ok){
-        hideLoader();
-        alert(t('export_denied'));
-        if(window.kidartAuth.openPaywall) window.kidartAuth.openPaywall();
-        return;
-      }
-    }
-
-    const url=URL.createObjectURL(new Blob([bytes],{type:'image/png'}));
-    const a=document.createElement('a'); a.href=url; a.download=exportName(); a.click();
-    setTimeout(()=>URL.revokeObjectURL(url),1500);
-  }catch(err){ console.error(err); alert(t('alert_export')); }
-  hideLoader();
-}
-function exportName(){
-  const e=state.exp;
-  const t=e.tag.replace(/[^\w.x:-]/g,'').replace(':','-');
-  return `retro_${e.mode}_${t}${e.dpi>0?'_'+e.dpi+'dpi':''}.png`;
-}
-// 把物理分辨率写进 PNG 的 pHYs 块（否则打印软件按 72DPI 计算，物理尺寸会错）
-const CRC_TABLE=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1);t[n]=c>>>0;}return t;})();
-function crc32(buf,s,e){let c=0xFFFFFFFF;for(let i=s;i<e;i++)c=CRC_TABLE[(c^buf[i])&0xFF]^(c>>>8);return (c^0xFFFFFFFF)>>>0;}
-function injectDPI(png, dpi){
-  const ppm=Math.round(dpi/0.0254);            // 像素/米
-  const chunk=new Uint8Array(21);
-  const dv=new DataView(chunk.buffer);
-  dv.setUint32(0,9);
-  chunk[4]=0x70;chunk[5]=0x48;chunk[6]=0x59;chunk[7]=0x73; // 'pHYs'
-  dv.setUint32(8,ppm); dv.setUint32(12,ppm); chunk[16]=1;  // 单位=米
-  dv.setUint32(17, crc32(chunk,4,17));
-  const at=8+25;                                // 签名(8)+IHDR(25) 后插入
-  const out=new Uint8Array(png.length+chunk.length);
-  out.set(png.subarray(0,at),0); out.set(chunk,at); out.set(png.subarray(at),at+chunk.length);
-  return out;
-}
-$('export').addEventListener('click', doExport);
-
-// 上传
-const drop=$('drop'), file=$('file');
-drop.addEventListener('click',()=>file.click());
-file.addEventListener('change',e=>loadFile(e.target.files[0]));
-;['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over');}));
-;['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('over');}));
-drop.addEventListener('drop',e=>loadFile(e.dataTransfer.files[0]));
-// 整个舞台也可拖入
-$('stage').addEventListener('dragover',e=>e.preventDefault());
-$('stage').addEventListener('drop',e=>{e.preventDefault();loadFile(e.dataTransfer.files[0]);});
-
-$('sample').addEventListener('click',makeSample);
-
-// loader
-function showLoader(t){$('loadtext').textContent=t;$('loader').classList.add('show');}
-function hideLoader(){$('loader').classList.remove('show');}
-
-// 量出预览区可用高度，写进 CSS 变量，确保大图在分栏里完整显示不被裁切
-function fitPreview(){
-  const pv=document.querySelector('.preview'); if(!pv) return;
-  const cs=getComputedStyle(pv);
-  const h=pv.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
-  if(h>0) document.documentElement.style.setProperty('--canvas-maxh', Math.floor(h)+'px');
-}
-let fitTimer=null;
-window.addEventListener('resize',()=>{ clearTimeout(fitTimer); fitTimer=setTimeout(fitPreview,80); });
-
-// 初始化
-$('ink-chip').style.background='#16140f';
-$('bg-chip').style.background='#e9e3d4';
-$('lang-toggle').addEventListener('click',()=> setLang(lang==='zh'?'en':'zh'));
-buildPresets();
-applyLang();   // 应用语言 + 构建导出UI + 显示读数
-requestAnimationFrame(fitPreview);   // 布局稳定后测量预览高度
-</script>
-
-<!-- ===== Supabase 登录（邮箱魔法链接） ===== -->
-<script src="config.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script>
-(function(){
-  "use strict";
-
-  // 配置从 public/config.js 读取（那三个值都是公开安全的）。
-  // 想改 key？只改 config.js，本文件不用动。
-  const CFG = window.APP_CONFIG || {};
-  const SUPABASE_URL = CFG.SUPABASE_URL || "https://YOUR-PROJECT.supabase.co";
-  const SUPABASE_ANON_KEY = CFG.SUPABASE_ANON_KEY || "YOUR-ANON-PUBLIC-KEY";
-  const PAYPAL_CLIENT_ID = CFG.PAYPAL_CLIENT_ID || "YOUR-PAYPAL-CLIENT-ID";
-
-  const byId = id => document.getElementById(id);
-  const configured = !SUPABASE_URL.includes("YOUR-") && !SUPABASE_ANON_KEY.includes("YOUR-");
-  let sb = null;
-  if (configured && window.supabase) {
-    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    window.sb = sb;
-    console.log('[auth] createClient ok, URL=', SUPABASE_URL);
-  } else {
-    console.warn('[auth] createClient skipped: configured=', configured, 'window.supabase=', !!window.supabase);
-  }
-
-  // 弹窗文案（中英，跟随主界面语言）
-  const I18N2 = {
-    zh:{ signin_title:'登录 / 注册', signin_sub:'输入邮箱，我们会发一条登录链接给你。点开即登录，无需密码。',
-         signin_btn:'发送登录链接', account_title:'我的账户', signout_btn:'退出登录',
-         acct_signin:'登录', sending:'发送中…', sent:'链接已发送，请去邮箱查收（注意垃圾箱）。',
-         invalid_email:'请输入有效邮箱', err:'出错了，请重试',
-         lifetime:'终身解锁', credits_left:'剩 {n} 次', account_short:'账户', not_configured:'Supabase 未配置（请在代码顶部填 URL 和 anon key）',
-         google_btn:'使用 Google 登录', or_divider:'或',
-         pay_title:'解锁高清导出', pay_sub:'高清 / 可打印导出需解锁。社交尺寸始终可免费导出（带水印）。',
-         pay_single:'单张高清', pay_lifetime:'终身无限', pay_best:'最划算',
-         pay_single_desc:'本次导出 1 张无水印高清图', pay_lifetime_desc:'无限次导出 · 无水印 · 含后续新功能（约做 5 张就回本）',
-         pay_stub:'支付按钮下一步接入', pay_stub_msg:'PayPal 付款将在下一步（3.4）接入。',
-         pay_processing:'付款处理中…', pay_failed:'付款失败，请重试', pay_cancel:'已取消付款',
-         pay_success:'解锁成功！正在为你打开…', pay_success_delay:'付款成功！授权稍后到账，请刷新页面。',
-         pay_need_clientid:'未配置 PayPal Client ID（请在代码顶部填）' },
-    en:{ signin_title:'Sign in / Sign up', signin_sub:"Enter your email and we'll send a magic link — click it to sign in, no password needed.",
-         signin_btn:'Send magic link', account_title:'My account', signout_btn:'Sign out',
-         acct_signin:'Sign in', sending:'Sending…', sent:'Link sent! Check your inbox (and spam).',
-         invalid_email:'Please enter a valid email', err:'Something went wrong, try again',
-         lifetime:'Lifetime', credits_left:'{n} left', account_short:'Account', not_configured:'Supabase not configured (fill URL & anon key at top of script)',
-         google_btn:'Continue with Google', or_divider:'or',
-         pay_title:'Unlock HD export', pay_sub:'HD / printable export needs unlocking. Social sizes are always free (watermarked).',
-         pay_single:'Single HD', pay_lifetime:'Lifetime unlimited', pay_best:'Best value',
-         pay_single_desc:'One watermark-free HD export', pay_lifetime_desc:'Unlimited exports · no watermark · future features included (pays off in ~5 prints)',
-         pay_stub:'Payment buttons coming next', pay_stub_msg:'PayPal checkout will be wired in the next step (3.4).',
-         pay_processing:'Processing payment…', pay_failed:'Payment failed, please try again', pay_cancel:'Payment cancelled',
-         pay_success:'Unlocked! Opening…', pay_success_delay:'Payment received! Entitlement will arrive shortly — please refresh.',
-         pay_need_clientid:'PayPal Client ID not configured (fill it at top of script)' },
-  };
-  function alang(){ try{ return localStorage.getItem('ri_lang')==='en' ? 'en':'zh'; }catch(e){ return 'zh'; } }
-  function t2(k,vars){ let s=(I18N2[alang()]||I18N2.zh)[k]||k; if(vars)for(const x in vars)s=s.split('{'+x+'}').join(vars[x]); return s; }
-  function applyAuthLang(){ document.querySelectorAll('[data-i18n2]').forEach(el=>{ el.textContent=t2(el.dataset.i18n2); }); updateAccountBtn(); }
-
-  let session = null, profile = null;
-  const show = (el,on)=>{ el.style.display = on ? '' : 'none'; };
-  const openModal  = ()=>{ applyAuthLang(); renderState(); byId('auth-msg').textContent=''; byId('auth-mask').classList.add('show'); };
-  const closeModal = ()=> byId('auth-mask').classList.remove('show');
-
-  function statusText(){
-    if(!profile) return '';
-    return profile.is_lifetime ? t2('lifetime') : t2('credits_left',{n: profile.single_credits});
-  }
-  function updateAccountBtn(){
-    const btn = byId('account-btn'); if(!btn) return;
-    const loggedIn = !!(session && session.user);
-    const st = loggedIn ? statusText() : '';
-    const label = loggedIn ? (st || t2('account_short')) : t2('acct_signin');
-    console.log('[auth] updateAccountBtn: loggedIn=', loggedIn, 'label=', label, 'session=', session ? 'exists' : 'null');
-    btn.textContent = label;
-  }
-  function renderState(){
-    const inOk = !!(session && session.user);
-    show(byId('auth-signin'), !inOk);
-    show(byId('auth-signedin'), inOk);
-    if(inOk){
-      byId('acct-email').textContent = session.user.email || '';
-      byId('acct-status').textContent = statusText();
-    }
-  }
-
-  async function fetchProfile(){
-    if(!sb || !session){ profile=null; return; }
-    try{
-      const { data, error } = await sb.from('profiles')
-        .select('is_lifetime,single_credits').eq('id', session.user.id).single();
-      profile = error ? null : data;
-    }catch(e){ profile=null; }
-  }
-
-  // 是否有权导出高清（终身 或 还有次数）
-  function hasAccess(){ return !!(profile && (profile.is_lifetime || profile.single_credits > 0)); }
-
-  // 服务端原子扣额度（lifetime 不扣 / single 扣1）。成功才返回 true。
-  // 注意：图已在前端渲好后才调它 —— "能不能导"由服务端裁决。
-  async function spend(spec){
-    if(!sb || !session) return false;
-    try{
-      const { data, error } = await sb.rpc('spend_single_credit');
-      if(error || data !== true) return false;
-      // 记一条导出流水（失败不影响下载）
-      try{
-        await sb.from('exports').insert({
-          user_id: session.user.id, spec: spec || null,
-          credits_spent: (profile && profile.is_lifetime) ? 0 : 1,
-        });
-      }catch(e){}
-      // 刷新额度显示
-      const { data: s } = await sb.auth.getSession();
-      await refresh(s.session);
-      return true;
-    }catch(e){ return false; }
-  }
-
-  // ---------- 付费弹窗 ----------
-  const closePay = ()=> byId('pay-mask').classList.remove('show');
-
-  // 懒加载 PayPal SDK（只在第一次打开付费弹窗时注入）
-  let paypalSDKPromise = null;
-  function ensurePayPalSDK(){
-    if(window.paypal) return Promise.resolve(window.paypal);
-    if(paypalSDKPromise) return paypalSDKPromise;
-    if(PAYPAL_CLIENT_ID.includes('YOUR-')) return Promise.reject(new Error('no-client-id'));
-    paypalSDKPromise = new Promise((resolve,reject)=>{
-      const s=document.createElement('script');
-      s.src=`https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(PAYPAL_CLIENT_ID)}&currency=USD&intent=capture`;
-      s.onload=()=> window.paypal ? resolve(window.paypal) : reject(new Error('sdk-empty'));
-      s.onerror=()=> reject(new Error('sdk-load-failed'));
-      document.head.appendChild(s);
-    });
-    return paypalSDKPromise;
-  }
-
-  // 付款成功后等授权到账（capture 已即时发放，这里兜底轮询几次）
-  async function waitForAccess(){
-    for(let i=0;i<6;i++){
-      if(window.kidartAuth && window.kidartAuth.refresh) await window.kidartAuth.refresh();
-      if(hasAccess()){
-        byId('pay-msg').className='msg ok'; byId('pay-msg').textContent=t2('pay_success');
-        setTimeout(closePay, 1200);
-        return;
-      }
-      await new Promise(r=>setTimeout(r,1200));
-    }
-    byId('pay-msg').className='msg ok'; byId('pay-msg').textContent=t2('pay_success_delay');
-  }
-
-  // 把 PayPal 按钮挂到指定容器
-  async function mountPayPal(containerId, product){
-    const el = byId(containerId); if(!el) return;
-    el.innerHTML='';
-    let paypal;
-    try{ paypal = await ensurePayPalSDK(); }
-    catch(e){ el.innerHTML=`<div style="font-size:12px;color:var(--text-dim);text-align:center">${t2('pay_need_clientid')}</div>`; return; }
-    paypal.Buttons({
-      style:{ layout:'vertical', color: product==='lifetime'?'gold':'silver', shape:'pill', height:42, tagline:false, label:'pay' },
-      // 1) 建单：调你的 create-order（带登录 token，服务端按价建单 + 写用户 id）
-      createOrder: async ()=>{
-        const token = await window.kidartAuth.getToken();
-        const r = await fetch('/api/create-order',{
-          method:'POST',
-          headers:{ 'Content-Type':'application/json', Authorization:'Bearer '+token },
-          body: JSON.stringify({ product }),
-        });
-        const d = await r.json();
-        if(!d.id) throw new Error('create-order failed');
-        return d.id;
-      },
-      // 2) 批准后：调 capture-order 捕获扣款 + 即时发放
-      onApprove: async (data)=>{
-        byId('pay-msg').className='msg'; byId('pay-msg').textContent=t2('pay_processing');
-        try{
-          const token = await window.kidartAuth.getToken();
-          const r = await fetch('/api/capture-order',{
-            method:'POST',
-            headers:{ 'Content-Type':'application/json', Authorization:'Bearer '+token },
-            body: JSON.stringify({ orderID: data.orderID }),
-          });
-          const d = await r.json();
-          if(!r.ok || !d.ok){ byId('pay-msg').className='msg err'; byId('pay-msg').textContent=t2('pay_failed'); return; }
-          await waitForAccess();
-        }catch(e){ byId('pay-msg').className='msg err'; byId('pay-msg').textContent=t2('pay_failed'); }
-      },
-      onError: (err)=>{ console.error('paypal error', err); byId('pay-msg').className='msg err'; byId('pay-msg').textContent=t2('pay_failed'); },
-      onCancel: ()=>{ byId('pay-msg').className='msg'; byId('pay-msg').textContent=t2('pay_cancel'); },
-    }).render('#'+containerId);
-  }
-  async function loadPrices(){
-    const box = byId('pay-options'); box.innerHTML='';
-    let prices=[];
-    try{
-      const { data } = await sb.from('pricing').select('id,amount,currency').in('id',['single','lifetime']);
-      prices = data || [];
-    }catch(e){}
-    const get = id => prices.find(p=>p.id===id);
-    const life = get('lifetime'), single = get('single');
-    const cur = (life && life.currency) || (single && single.currency) || 'USD';
-    const sym = cur==='USD' ? '$' : '';
-    const fmt = a => sym + Number(a).toFixed(2);
-    // 终身（主推，放上面）
-    if(life){
-      const d=document.createElement('div'); d.className='pay-card best';
-      d.innerHTML=`<div class="pc-top"><span class="pc-name">${t2('pay_lifetime')}</span><span class="pc-badge">${t2('pay_best')}</span></div>
-        <div class="pc-price">${fmt(life.amount)}</div>
-        <div class="pc-desc">${t2('pay_lifetime_desc')}</div>
-        <div class="pc-btnwrap" id="pp-lifetime"></div>`;
-      box.appendChild(d);
-    }
-    // 单张
-    if(single){
-      const d=document.createElement('div'); d.className='pay-card';
-      d.innerHTML=`<div class="pc-top"><span class="pc-name">${t2('pay_single')}</span></div>
-        <div class="pc-price">${fmt(single.amount)}</div>
-        <div class="pc-desc">${t2('pay_single_desc')}</div>
-        <div class="pc-btnwrap" id="pp-single"></div>`;
-      box.appendChild(d);
-    }
-    // 挂真正的 PayPal 按钮
-    if(life) mountPayPal('pp-lifetime','lifetime');
-    if(single) mountPayPal('pp-single','single');
-  }
-  async function openPaywall(){
-    if(!sb){ return; }
-    // 没登录先去登录
-    if(!session){ openModal(); return; }
-    applyAuthLang();
-    byId('pay-msg').textContent='';
-    byId('pay-mask').classList.add('show');
-    await loadPrices();
-  }
-
-  async function refresh(s){
-    console.log('[auth] refresh called: session=', s ? 'exists (user=' + (s.user && s.user.email) + ')' : 'null');
-    session = s;
-    await fetchProfile();
-    updateAccountBtn(); renderState();
-    window.kidartAuth = {
-      isLoggedIn: !!session,
-      user: session ? session.user : null,
-      profile,
-      hasAccess,
-      spend,
-      openPaywall,
-      getToken: async ()=>{ if(!sb) return null; const { data } = await sb.auth.getSession(); return data.session ? data.session.access_token : null; },
-      refresh: async ()=>{ if(!sb) return; const { data } = await sb.auth.getSession(); await refresh(data.session); },
-      open: openModal,
-    };
-  }
-
-  // 事件
-  byId('account-btn').addEventListener('click', openModal);
-  byId('auth-close').addEventListener('click', closeModal);
-  byId('auth-mask').addEventListener('click', e=>{ if(e.target===byId('auth-mask')) closeModal(); });
-
-  byId('auth-send').addEventListener('click', async ()=>{
-    const msg = byId('auth-msg'); msg.className='msg';
-    if(!sb){ msg.className='msg err'; msg.textContent=t2('not_configured'); return; }
-    const email = byId('auth-email').value.trim();
-    if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ msg.className='msg err'; msg.textContent=t2('invalid_email'); return; }
-    msg.className='msg'; msg.textContent=t2('sending');
-    try{
-      const { error } = await sb.auth.signInWithOtp({ email, options:{ emailRedirectTo: window.location.origin } });
-      if(error){ msg.className='msg err'; msg.textContent=error.message || t2('err'); }
-      else{ msg.className='msg ok'; msg.textContent=t2('sent'); }
-    }catch(e){ msg.className='msg err'; msg.textContent=t2('err'); }
-  });
-
-  byId('auth-google').addEventListener('click', async ()=>{
-    const msg = byId('auth-msg'); msg.className='msg'; msg.textContent='';
-    if(!sb){ msg.className='msg err'; msg.textContent=t2('not_configured'); return; }
-    console.log('[auth] Google OAuth: initiating signInWithOAuth');
-    const { error } = await sb.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: window.location.origin },
-    });
-    if(error){
-      console.log('[auth] Google OAuth error:', error.message);
-      msg.className='msg err'; msg.textContent=error.message || t2('err');
-    }
-  });
-
-  byId('auth-signout').addEventListener('click', async ()=>{
-    // 先同步清本地状态，立即更新 UI，不等 signOut 网络请求
-    session = null; profile = null;
-    updateAccountBtn(); renderState();
-    closePay(); closeModal();
-    // 再发 signOut 请求（onAuthStateChange 会触发 refresh(null)，但此时 UI 已正确）
-    if(sb){
-      const { error } = await sb.auth.signOut();
-      console.log('[auth] signOut result: error=', error || 'none');
-    }
-  });
-
-  // 付费弹窗关闭
-  byId('pay-close').addEventListener('click', closePay);
-  byId('pay-mask').addEventListener('click', e=>{ if(e.target===byId('pay-mask')) closePay(); });
-
-  // 语言切换后同步翻译弹窗
-  const lt = byId('lang-toggle');
-  if(lt) lt.addEventListener('click', ()=> setTimeout(applyAuthLang, 0));
-
-  // 启动
-  // 只用 onAuthStateChange 一个入口（它会在初始化时同步回调一次当前 session），
-  // 不再额外调 getSession().then(refresh)，避免两者并发竞争覆盖状态。
-  applyAuthLang();
-  if(sb){
-    sb.auth.onAuthStateChange((event, s)=>{
-      console.log('[auth] onAuthStateChange: event=', event, 'session=', s ? 'exists' : 'null');
-      refresh(s);
-    });
-  } else {
-    updateAccountBtn();
-    console.warn('[auth] 未配置 Supabase URL / anon key，登录暂不可用。');
-  }
-})();
-</script>
-
-<footer id="site-footer">
+<!-- ===== FOOTER ===== -->
+<footer>
   <a href="/privacy.html" target="_blank" rel="noopener">Privacy</a>
   <span class="sep">·</span>
   <a href="/terms.html" target="_blank" rel="noopener">Terms</a>
   <span class="sep">·</span>
   <span>© 2026 stylejoy</span>
 </footer>
+
 </body>
 </html>
