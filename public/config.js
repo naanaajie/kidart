@@ -22,5 +22,5 @@ window.APP_CONFIG = {
   SUPABASE_ANON_KEY: "sb_publishable__d8F-lWU3jdGLRe7BKGn3g_x-to_rXU",
 
   // PayPal 开发者后台 → Apps & Credentials → Sandbox → 你的 App → Client ID
-  PAYPAL_CLIENT_ID: "Ad7tUZkutq7k9lo7yg3w_Fhzfdlh3S-ifW50-qDac54Ba2bGEujlIDqa8XgFwV6x-bCtylilMHPB-jS2",
+  PAYPAL_CLIENT_ID: "AXXoeMtfQ7IS4m809GpYC-4d_eyh9xCxtdG06P-_pWOAY0b_2UhofY0pLFBJCIvGyv7VxOU_dwSBr64P",
 };
