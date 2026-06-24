@@ -280,6 +280,26 @@
     .brand{padding:14px 18px 10px}
     .getrow{padding:0 18px 14px}
   }
+  /* 模板网格弹窗 */
+  .tpl-grid{
+    display:grid;grid-template-columns:repeat(3,1fr);
+    gap:10px;margin-top:16px;max-height:60vh;overflow-y:auto;
+  }
+  .tpl-grid::-webkit-scrollbar{width:6px}
+  .tpl-grid::-webkit-scrollbar-thumb{background:var(--line);border-radius:6px}
+  .tpl-item{
+    position:relative;cursor:pointer;border-radius:8px;overflow:hidden;
+    border:2px solid transparent;transition:.12s;aspect-ratio:3/4;
+    background:var(--panel-2);
+  }
+  .tpl-item:hover{border-color:var(--accent)}
+  .tpl-item img{width:100%;height:100%;object-fit:cover;display:block}
+  .tpl-cap{
+    position:absolute;bottom:0;left:0;right:0;
+    background:rgba(0,0,0,.55);font-size:11px;color:var(--text);
+    padding:4px 7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  @media(max-width:480px){.tpl-grid{grid-template-columns:repeat(2,1fr)}}
   /* 页脚：固定右下角，低调，不占工具空间 */
   #site-footer{
     position:fixed;bottom:10px;right:14px;z-index:5;
@@ -513,6 +533,15 @@
   </div>
 </div>
 
+<!-- 模板库弹窗 -->
+<div class="modal-mask" id="tpl-mask">
+  <div class="modal modal-wrap" style="max-width:560px">
+    <button class="modal-close" id="tpl-close" aria-label="close">&times;</button>
+    <h3 data-i18n="tpl_title">选择模板</h3>
+    <div id="tpl-grid" class="tpl-grid"></div>
+  </div>
+</div>
+
 <script>
 "use strict";
 /* =========================================================
@@ -521,6 +550,18 @@
            → 上采样label → 描边膨胀 → 喷溅噪声 → 颗粒/纸张纹理
    设计要点: "分区"(慢,聚类)与"上色/肌理"(快,重绘)分离
    ========================================================= */
+
+/* =====================================================
+   模板库清单 —— 如何新增一个模板：
+   1. 把图片放到 public/templates/ 目录，如 t3.jpg
+   2. 在下方数组加一项：{ src:'templates/t3.jpg', zh:'标题', en:'Title' }
+   ===================================================== */
+const TEMPLATES = [
+  { src:'templates/t1.jpg', zh:'花卉', en:'Flower' },
+  { src:'templates/t2.jpg', zh:'人像', en:'Portrait' },
+  { src:'templates/t3.jpg', zh:'静物', en:'Still life' },
+  { src:'templates/t4.jpg', zh:'风景', en:'Landscape' },
+];
 
 const $ = id => document.getElementById(id);
 const cv = $('cv'), ctx = cv.getContext('2d');
@@ -574,7 +615,7 @@ const I18N = {
     f_quality:'打印精度', dpi_150:'150 DPI · 远观', dpi_300:'300 DPI · 精细',
     f_aspect:'画面比例', asp_orig:'跟随原图', asp_square:'1 : 1 方形', asp_45:'4 : 5 竖版',
     asp_34:'3 : 4 竖版', asp_23:'2 : 3 竖版', asp_43:'4 : 3 横版',
-    f_longedge:'输出长边', btn_export:'⤓ 导出 PNG', pill_sample:'载入示例',
+    f_longedge:'输出长边', btn_export:'⤓ 导出 PNG', pill_sample:'模板', tpl_title:'选择模板',
     empty_b:'从左上角上传一张照片', empty_l2:'花卉、人像、静物、风景都可以', empty_l3:'建议主体清晰、背景简单',
     load_seg:'正在分区…', load_export:'正在导出高清图…',
     ro_empty_b:'先上传一张照片', ro_empty_s:'导出规格会在这里显示',
@@ -596,7 +637,7 @@ const I18N = {
     f_quality:'Print quality', dpi_150:'150 DPI · distance', dpi_300:'300 DPI · fine',
     f_aspect:'Aspect ratio', asp_orig:'Match photo', asp_square:'1 : 1 Square', asp_45:'4 : 5 Portrait',
     asp_34:'3 : 4 Portrait', asp_23:'2 : 3 Portrait', asp_43:'4 : 3 Landscape',
-    f_longedge:'Long edge', btn_export:'⤓ Export PNG', pill_sample:'Load sample',
+    f_longedge:'Long edge', btn_export:'⤓ Export PNG', pill_sample:'Templates', tpl_title:'Choose a template',
     empty_b:'Upload a photo from the top-left', empty_l2:'Flowers, portraits, still life, landscapes', empty_l3:'Best with a clear subject and simple background',
     load_seg:'Segmenting…', load_export:'Rendering high-res export…',
     ro_empty_b:'Upload a photo first', ro_empty_s:'Export specs will show here',
@@ -1259,7 +1300,46 @@ drop.addEventListener('drop',e=>loadFile(e.dataTransfer.files[0]));
 $('stage').addEventListener('dragover',e=>e.preventDefault());
 $('stage').addEventListener('drop',e=>{e.preventDefault();loadFile(e.dataTransfer.files[0]);});
 
-$('sample').addEventListener('click',makeSample);
+$('sample').addEventListener('click', openTemplates);
+
+function openTemplates(){
+  const grid = $('tpl-grid');
+  if(!grid.hasChildNodes()){
+    // 懒渲染：第一次打开时构建网格
+    TEMPLATES.forEach(tpl => {
+      const item = document.createElement('div');
+      item.className = 'tpl-item';
+      const img = document.createElement('img');
+      img.src = tpl.src;
+      img.loading = 'lazy';
+      img.alt = tpl.en;
+      const cap = document.createElement('div');
+      cap.className = 'tpl-cap';
+      cap.textContent = lang === 'en' ? tpl.en : tpl.zh;
+      item.appendChild(img);
+      item.appendChild(cap);
+      item.addEventListener('click', () => loadTemplate(tpl.src));
+      grid.appendChild(item);
+    });
+  } else {
+    // 语言切换后同步 caption
+    [...grid.querySelectorAll('.tpl-cap')].forEach((cap, i) => {
+      cap.textContent = lang === 'en' ? TEMPLATES[i].en : TEMPLATES[i].zh;
+    });
+  }
+  $('tpl-mask').classList.add('show');
+}
+
+function loadTemplate(src){
+  $('tpl-mask').classList.remove('show');
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.onload = () => { state.srcImg = img; segment(true); };
+  img.src = src;
+}
+
+$('tpl-close').addEventListener('click', () => $('tpl-mask').classList.remove('show'));
+$('tpl-mask').addEventListener('click', e => { if(e.target === $('tpl-mask')) $('tpl-mask').classList.remove('show'); });
 
 // loader
 function showLoader(t){$('loadtext').textContent=t;$('loader').classList.add('show');}
