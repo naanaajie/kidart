@@ -280,6 +280,19 @@
     .brand{padding:14px 18px 10px}
     .getrow{padding:0 18px 14px}
   }
+  /* 页脚：固定右下角，低调，不占工具空间 */
+  #site-footer{
+    position:fixed;bottom:10px;right:14px;z-index:5;
+    display:flex;align-items:center;gap:10px;
+    font-size:11px;color:var(--text-dim);opacity:.35;
+    transition:opacity .2s;pointer-events:none;
+  }
+  #site-footer:hover{opacity:.85}
+  #site-footer a,#site-footer span{pointer-events:auto}
+  #site-footer a{color:var(--text-dim);text-decoration:none}
+  #site-footer a:hover{color:var(--text);text-decoration:underline}
+  #site-footer .sep{opacity:.5}
+  @media (max-width:820px){#site-footer{display:none}}
 </style>
 </head>
 <body>
@@ -1591,5 +1604,13 @@ requestAnimationFrame(fitPreview);   // 布局稳定后测量预览高度
   }
 })();
 </script>
+
+<footer id="site-footer">
+  <a href="/privacy.html" target="_blank" rel="noopener">Privacy</a>
+  <span class="sep">·</span>
+  <a href="/terms.html" target="_blank" rel="noopener">Terms</a>
+  <span class="sep">·</span>
+  <span>© 2026 stylejoy</span>
+</footer>
 </body>
 </html>
