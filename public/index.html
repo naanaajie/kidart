@@ -1253,18 +1253,18 @@ requestAnimationFrame(fitPreview);   // 布局稳定后测量预览高度
 </script>
 
 <!-- ===== Supabase 登录（邮箱魔法链接） ===== -->
+<script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 (function(){
   "use strict";
 
-  // ╔══════════════════════════════════════════════════════════╗
-  // ║  在这里填你的 Supabase 两个值（anon key 是公开的，可放前端）  ║
-  // ║  Supabase 后台 → Project Settings → API                    ║
-  // ╚══════════════════════════════════════════════════════════╝
-  const SUPABASE_URL = "https://awvhpaieygjqzofclbrm.supabase.co";       // ← 改成你的 Project URL
-  const SUPABASE_ANON_KEY = "sb_publishable__d8F-lWU3jdGLRe7BKGn3g_x-to_rXU";              // ← 改成你的 anon public key
-  // ════════════════════════════════════════════════════════════
+  // 配置从 public/config.js 读取（那三个值都是公开安全的）。
+  // 想改 key？只改 config.js，本文件不用动。
+  const CFG = window.APP_CONFIG || {};
+  const SUPABASE_URL = CFG.SUPABASE_URL || "https://YOUR-PROJECT.supabase.co";
+  const SUPABASE_ANON_KEY = CFG.SUPABASE_ANON_KEY || "YOUR-ANON-PUBLIC-KEY";
+  const PAYPAL_CLIENT_ID = CFG.PAYPAL_CLIENT_ID || "YOUR-PAYPAL-CLIENT-ID";
 
   const byId = id => document.getElementById(id);
   const configured = !SUPABASE_URL.includes("YOUR-") && !SUPABASE_ANON_KEY.includes("YOUR-");
@@ -1284,7 +1284,10 @@ requestAnimationFrame(fitPreview);   // 布局稳定后测量预览高度
          pay_title:'解锁高清导出', pay_sub:'高清 / 可打印导出需解锁。社交尺寸始终可免费导出（带水印）。',
          pay_single:'单张高清', pay_lifetime:'终身无限', pay_best:'最划算',
          pay_single_desc:'本次导出 1 张无水印高清图', pay_lifetime_desc:'无限次导出 · 无水印 · 含后续新功能（约做 5 张就回本）',
-         pay_stub:'支付按钮下一步接入', pay_stub_msg:'PayPal 付款将在下一步（3.4）接入。' },
+         pay_stub:'支付按钮下一步接入', pay_stub_msg:'PayPal 付款将在下一步（3.4）接入。',
+         pay_processing:'付款处理中…', pay_failed:'付款失败，请重试', pay_cancel:'已取消付款',
+         pay_success:'解锁成功！正在为你打开…', pay_success_delay:'付款成功！授权稍后到账，请刷新页面。',
+         pay_need_clientid:'未配置 PayPal Client ID（请在代码顶部填）' },
     en:{ signin_title:'Sign in / Sign up', signin_sub:"Enter your email and we'll send a magic link — click it to sign in, no password needed.",
          signin_btn:'Send magic link', account_title:'My account', signout_btn:'Sign out',
          acct_signin:'Sign in', sending:'Sending…', sent:'Link sent! Check your inbox (and spam).',
@@ -1293,7 +1296,10 @@ requestAnimationFrame(fitPreview);   // 布局稳定后测量预览高度
          pay_title:'Unlock HD export', pay_sub:'HD / printable export needs unlocking. Social sizes are always free (watermarked).',
          pay_single:'Single HD', pay_lifetime:'Lifetime unlimited', pay_best:'Best value',
          pay_single_desc:'One watermark-free HD export', pay_lifetime_desc:'Unlimited exports · no watermark · future features included (pays off in ~5 prints)',
-         pay_stub:'Payment buttons coming next', pay_stub_msg:'PayPal checkout will be wired in the next step (3.4).' },
+         pay_stub:'Payment buttons coming next', pay_stub_msg:'PayPal checkout will be wired in the next step (3.4).',
+         pay_processing:'Processing payment…', pay_failed:'Payment failed, please try again', pay_cancel:'Payment cancelled',
+         pay_success:'Unlocked! Opening…', pay_success_delay:'Payment received! Entitlement will arrive shortly — please refresh.',
+         pay_need_clientid:'PayPal Client ID not configured (fill it at top of script)' },
   };
   function alang(){ try{ return localStorage.getItem('ri_lang')==='en' ? 'en':'zh'; }catch(e){ return 'zh'; } }
   function t2(k,vars){ let s=(I18N2[alang()]||I18N2.zh)[k]||k; if(vars)for(const x in vars)s=s.split('{'+x+'}').join(vars[x]); return s; }
@@ -1362,14 +1368,76 @@ requestAnimationFrame(fitPreview);   // 布局稳定后测量预览高度
 
   // ---------- 付费弹窗 ----------
   const closePay = ()=> byId('pay-mask').classList.remove('show');
-  function mountStub(id){
-    const el = byId(id); if(!el) return;
+
+  // 懒加载 PayPal SDK（只在第一次打开付费弹窗时注入）
+  let paypalSDKPromise = null;
+  function ensurePayPalSDK(){
+    if(window.paypal) return Promise.resolve(window.paypal);
+    if(paypalSDKPromise) return paypalSDKPromise;
+    if(PAYPAL_CLIENT_ID.includes('YOUR-')) return Promise.reject(new Error('no-client-id'));
+    paypalSDKPromise = new Promise((resolve,reject)=>{
+      const s=document.createElement('script');
+      s.src=`https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(PAYPAL_CLIENT_ID)}&currency=USD&intent=capture`;
+      s.onload=()=> window.paypal ? resolve(window.paypal) : reject(new Error('sdk-empty'));
+      s.onerror=()=> reject(new Error('sdk-load-failed'));
+      document.head.appendChild(s);
+    });
+    return paypalSDKPromise;
+  }
+
+  // 付款成功后等授权到账（capture 已即时发放，这里兜底轮询几次）
+  async function waitForAccess(){
+    for(let i=0;i<6;i++){
+      if(window.kidartAuth && window.kidartAuth.refresh) await window.kidartAuth.refresh();
+      if(hasAccess()){
+        byId('pay-msg').className='msg ok'; byId('pay-msg').textContent=t2('pay_success');
+        setTimeout(closePay, 1200);
+        return;
+      }
+      await new Promise(r=>setTimeout(r,1200));
+    }
+    byId('pay-msg').className='msg ok'; byId('pay-msg').textContent=t2('pay_success_delay');
+  }
+
+  // 把 PayPal 按钮挂到指定容器
+  async function mountPayPal(containerId, product){
+    const el = byId(containerId); if(!el) return;
     el.innerHTML='';
-    const b=document.createElement('button');
-    b.className='btn btn-primary'; b.style.width='100%';
-    b.textContent=t2('pay_stub');
-    b.addEventListener('click', ()=>{ byId('pay-msg').className='msg'; byId('pay-msg').textContent=t2('pay_stub_msg'); });
-    el.appendChild(b);
+    let paypal;
+    try{ paypal = await ensurePayPalSDK(); }
+    catch(e){ el.innerHTML=`<div style="font-size:12px;color:var(--text-dim);text-align:center">${t2('pay_need_clientid')}</div>`; return; }
+    paypal.Buttons({
+      style:{ layout:'vertical', color: product==='lifetime'?'gold':'silver', shape:'pill', height:42, tagline:false, label:'pay' },
+      // 1) 建单：调你的 create-order（带登录 token，服务端按价建单 + 写用户 id）
+      createOrder: async ()=>{
+        const token = await window.kidartAuth.getToken();
+        const r = await fetch('/api/create-order',{
+          method:'POST',
+          headers:{ 'Content-Type':'application/json', Authorization:'Bearer '+token },
+          body: JSON.stringify({ product }),
+        });
+        const d = await r.json();
+        if(!d.id) throw new Error('create-order failed');
+        return d.id;
+      },
+      // 2) 批准后：调 capture-order 捕获扣款 + 即时发放
+      onApprove: async (data)=>{
+        byId('pay-msg').className='msg'; byId('pay-msg').textContent=t2('pay_processing');
+        try{
+          const token = await window.kidartAuth.getToken();
+          const r = await fetch('/api/capture-order',{
+            method:'POST',
+            headers:{ 'Content-Type':'application/json', Authorization:'Bearer '+token },
+            body: JSON.stringify({ orderID: data.orderID }),
+          });
+          const d = await r.json();
+          if(!r.ok || !d.ok){ byId('pay-msg').className='msg err'; byId('pay-msg').textContent=t2('pay_failed'); return; }
+          await waitForAccess();
+        }catch(e){ byId('pay-msg').className='msg err'; byId('pay-msg').textContent=t2('pay_failed'); }
+      },
+      onError: (err)=>{ console.error('paypal error', err); byId('pay-msg').className='msg err'; byId('pay-msg').textContent=t2('pay_failed'); },
+      onCancel: ()=>{ byId('pay-msg').className='msg'; byId('pay-msg').textContent=t2('pay_cancel'); },
+    }).render('#'+containerId);
   }
   async function loadPrices(){
     const box = byId('pay-options'); box.innerHTML='';
@@ -1401,8 +1469,9 @@ requestAnimationFrame(fitPreview);   // 布局稳定后测量预览高度
         <div class="pc-btnwrap" id="pp-single"></div>`;
       box.appendChild(d);
     }
-    // 3.3：占位按钮；3.4 会换成真正的 PayPal 按钮
-    mountStub('pp-lifetime'); mountStub('pp-single');
+    // 挂真正的 PayPal 按钮
+    if(life) mountPayPal('pp-lifetime','lifetime');
+    if(single) mountPayPal('pp-single','single');
   }
   async function openPaywall(){
     if(!sb){ return; }
