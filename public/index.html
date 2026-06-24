@@ -1519,7 +1519,13 @@ requestAnimationFrame(fitPreview);   // 布局稳定后测量预览高度
     }catch(e){ msg.className='msg err'; msg.textContent=t2('err'); }
   });
 
-  byId('auth-signout').addEventListener('click', async ()=>{ if(sb) await sb.auth.signOut(); closeModal(); });
+  byId('auth-signout').addEventListener('click', async ()=>{
+    try{ if(sb) await sb.auth.signOut(); }catch(e){}
+    profile = null;            // 清掉额度缓存
+    await refresh(null);       // 立即把状态刷成未登录 → 按钮变回 Sign in
+    closePay();                // 顺手关掉可能开着的付费弹窗
+    closeModal();
+  });
 
   // 付费弹窗关闭
   byId('pay-close').addEventListener('click', closePay);
