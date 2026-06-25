@@ -557,11 +557,11 @@
    2. 在下方数组加一项：{ src:'templates/t3.jpg', zh:'标题', en:'Title' }
    ===================================================== */
 const TEMPLATES = [
-  { src:'images/flower-before1.png', en:'Flower 1' },
-  { src:'images/flower-before2.png', en:'Flower 2' },
-  { src:'images/flower-before3.png', en:'Flower 3' },
-  { src:'images/flower-before4.png', en:'Flower 4' },
-  { src:'images/flower-before5.png', en:'Flower 5' },
+  { src:'images/flower-before1.png', en:'Red Rose',      zh:'红玫瑰' },
+  { src:'images/flower-before2.png', en:'Yellow Tulip',  zh:'黄色郁金香' },
+  { src:'images/flower-before3.png', en:'Orange Rose',   zh:'橙玫瑰' },
+  { src:'images/flower-before4.png', en:'Sunflower',     zh:'向日葵' },
+  { src:'images/flower-before5.png', en:'Cotton Branch', zh:'棉花枝' },
 ];
 
 const $ = id => document.getElementById(id);
@@ -1316,7 +1316,7 @@ function openTemplates(){
       img.alt = tpl.en;
       const cap = document.createElement('div');
       cap.className = 'tpl-cap';
-      cap.textContent = tpl.en;
+      cap.textContent = lang === 'zh' ? tpl.zh : tpl.en;
       item.appendChild(img);
       item.appendChild(cap);
       item.addEventListener('click', () => loadTemplate(tpl.src));
@@ -1325,7 +1325,7 @@ function openTemplates(){
   } else {
     // 语言切换后同步 caption
     [...grid.querySelectorAll('.tpl-cap')].forEach((cap, i) => {
-      cap.textContent = TEMPLATES[i].en;
+      cap.textContent = lang === 'zh' ? TEMPLATES[i].zh : TEMPLATES[i].en;
     });
   }
   $('tpl-mask').classList.add('show');
