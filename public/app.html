@@ -45,12 +45,7 @@
     font-size:16px;font-weight:800;letter-spacing:.04em;
     display:flex;align-items:center;gap:9px;
   }
-  .brand .dot{
-    width:13px;height:13px;border-radius:3px;
-    background:var(--accent);
-    box-shadow:4px 0 0 var(--accent-2);
-    transform:translateX(-2px);
-  }
+  .brand-logo{height:26px;width:auto;display:block}
   .brand p{font-size:11px;color:var(--text-dim);margin-top:6px;letter-spacing:.02em}
 
   .scroll{flex:1;overflow-y:auto;padding:4px 0 24px}
@@ -364,7 +359,7 @@
   <main class="stage" id="stage">
     <div class="leftbar">
       <div class="brand">
-        <h1><span class="dot"></span><span class="title-text" data-i18n="title">复古肌理插画生成器</span><button class="pill" id="lang-toggle">EN</button><button class="pill" id="account-btn">Sign in</button></h1>
+        <h1><img src="/stylejoy-logo.svg" class="brand-logo" alt="stylejoy"><span class="title-text" data-i18n="title">复古肌理插画生成器</span><button class="pill" id="lang-toggle">EN</button><button class="pill" id="account-btn">Sign in</button></h1>
         <p data-i18n="subtitle">照片 → Riso 孔版风格装饰画</p>
       </div>
       <div class="getrow">
@@ -438,7 +433,7 @@
         <h2><span class="bar"></span><span data-i18n="g_colors">色彩控制</span></h2>
         <div class="presets" id="presets"></div>
         <div class="swatches" id="swatches"></div>
-        <button class="btn btn-ghost" id="random" style="margin-bottom:13px" data-i18n="btn_random">🎲 随机配色</button>
+        <button class="btn btn-ghost" id="random" style="margin-bottom:13px;display:flex;align-items:center;justify-content:center;gap:7px"><span style="flex:0 0 auto;display:flex;line-height:0"><svg width="18" height="18" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="9" y="9" width="30" height="30" rx="7" stroke="currentColor" stroke-width="2.5"/><circle cx="17" cy="17" r="2.6" fill="currentColor"/><circle cx="31" cy="17" r="2.6" fill="currentColor"/><circle cx="24" cy="24" r="2.6" fill="currentColor"/><circle cx="17" cy="31" r="2.6" fill="currentColor"/><circle cx="31" cy="31" r="2.6" fill="currentColor"/></svg></span><span data-i18n="btn_random">Randomize</span></button>
         <div class="duo">
           <div class="field">
             <label style="display:block;margin-bottom:6px;font-size:12px" data-i18n="f_inkcolor">轮廓颜色</label>
@@ -633,8 +628,8 @@ const state = {
 
 // ---- 预设配色板 (Riso 风) ----
 const PRESETS = [
+  ['#f4ead2','#ff5a36','#1d4e89'],            // 朱红·普鲁士蓝 ★ 默认
   ['#e9e3d4','#c2d63f','#e845a8'],            // 荧光：奶白·青柠·品红 (参考图)
-  ['#f4ead2','#ff5a36','#1d4e89'],            // 朱红·普鲁士蓝
   ['#efe7d6','#f0a202','#0d7377','#2d2a32'],  // 芥黄·孔雀绿
   ['#f3eee2','#ff8fab','#3a86ff','#ffbe0b'],  // 糖果四色
   ['#e8e2d0','#7cb518','#5c4d7d','#c1440e'],  // 大地·森林
@@ -651,7 +646,7 @@ const I18N = {
     drop_title:'上传 / 拖入照片', drop_sub:'点击选择，或把图片拖到这里', drop_change:'↻ 换一张照片',
     g_seg:'分区生成', f_colors:'色块数量', f_contrast:'对比度', f_smooth:'区域平滑', btn_reseg:'↻ 重新分区',
     g_outline:'描边与肌理', f_thick:'轮廓粗细', f_rough:'边缘毛糙（喷溅）', f_grain:'颗粒肌理', f_paper:'纸张纹理',
-    g_colors:'色彩控制', btn_random:'🎲 随机配色', f_inkcolor:'轮廓颜色', f_papercolor:'纸张颜色',
+    g_colors:'色彩控制', btn_random:'随机配色', f_inkcolor:'轮廓颜色', f_papercolor:'纸张颜色',
     g_margin:'画面留白', f_margin:'留白边距',
     hint_margin:'边距用「纸张颜色」填充。想要纯净留白把纸张设为白色；想让背景延伸到边缘，把纸张设成接近背景色。画面比例由下方「导出」按用途自动决定。',
     g_export:'导出', tab_social:'社交媒体', tab_print:'打印', tab_custom:'自定义',
@@ -673,7 +668,7 @@ const I18N = {
     drop_title:'Upload / drop a photo', drop_sub:'Click to choose, or drag an image here', drop_change:'↻ Change photo',
     g_seg:'Segmentation', f_colors:'Color regions', f_contrast:'Contrast', f_smooth:'Region smoothing', btn_reseg:'↻ Re-segment',
     g_outline:'Outline & Texture', f_thick:'Outline weight', f_rough:'Edge roughness', f_grain:'Grain', f_paper:'Paper texture',
-    g_colors:'Colors', btn_random:'🎲 Randomize', f_inkcolor:'Outline color', f_papercolor:'Paper color',
+    g_colors:'Colors', btn_random:'Randomize', f_inkcolor:'Outline color', f_papercolor:'Paper color',
     g_margin:'Margin', f_margin:'Margin width',
     hint_margin:'The border is filled with the paper color. For clean borders set paper to white; to let the background reach the edge, set paper close to the background color. Aspect ratio is set automatically by the Export section below.',
     g_export:'Export', tab_social:'Social', tab_print:'Print', tab_custom:'Custom',
