@@ -182,6 +182,31 @@
   .btn-primary:hover{background:#f06f48}
   .btn-ghost{background:var(--panel-2);color:var(--text);border:1px solid var(--line)}
   .btn-ghost:hover{border-color:var(--text-dim)}
+
+  /* ---- Randomize 强反馈 ---- */
+  #random{
+    background:var(--panel-2);color:var(--text);border:1px solid var(--line);
+    transition:transform .1s ease, background .1s ease, box-shadow .1s ease;
+    will-change:transform;
+  }
+  #random:hover{
+    background:#2c2820;border-color:var(--accent);
+    box-shadow:0 0 0 2px rgba(232,98,58,.25);
+    transform:scale(1.02);
+  }
+  #random:active{
+    transform:scale(0.93);
+    background:var(--accent);color:#fff;border-color:var(--accent);
+    box-shadow:0 0 0 3px rgba(232,98,58,.35);
+  }
+  @keyframes randPop{
+    0%  {transform:scale(0.93)}
+    55% {transform:scale(1.07)}
+    80% {transform:scale(0.98)}
+    100%{transform:scale(1)}
+  }
+  #random.popping{animation:randPop .22s ease forwards}
+
   .btn-row{display:flex;gap:9px}
   .btn-row .btn{flex:1}
 
@@ -279,6 +304,24 @@
     .scroll{flex:0 0 auto;overflow:visible}
     .brand{padding:14px 18px 10px}
     .getrow{padding:0 18px 14px}
+  }
+
+  /* ---- 窄屏吸顶：预览区固定顶部，参数区独立滚动 ---- */
+  @media (max-width:768px){
+    html,body{overflow:hidden;height:100%}
+    .app{flex-direction:column;height:100vh;overflow:hidden}
+    .stage{
+      position:sticky;top:0;z-index:2;
+      flex:0 0 50vh;height:50vh;
+      overflow:hidden;
+    }
+    .preview{min-height:0;height:100%;padding:12px}
+    .panel{
+      flex:1;width:100%;
+      border-left:none;border-top:1px solid var(--line);
+      height:50vh;overflow:hidden;
+    }
+    .scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
   }
   /* 模板网格弹窗 */
   .tpl-grid{
@@ -1090,10 +1133,52 @@ $('bg').addEventListener('input',e=>{state.bg=hex2rgb(e.target.value);
   $('bg-chip').style.background=e.target.value;$('bg-label').textContent=e.target.value;
   document.querySelector('.canvas-wrap').style.background=e.target.value;repaint();});
 
+// ---- Randomize 音效（Web Audio API 合成，短促 sine+triangle 叠加，快速衰减） ----
+const SFX_ENABLED = true;
+let _sfxCtx = null;
+function playSfx(){
+  if(!SFX_ENABLED) return;
+  try{
+    if(!_sfxCtx) _sfxCtx = new (window.AudioContext||window.webkitAudioContext)();
+    const ctx = _sfxCtx;
+    const now = ctx.currentTime;
+    // 基础频率带轻微随机浮动，让连续点击更活泼
+    const freq = 880 + (Math.random()-0.5)*160;
+    const gain = ctx.createGain();
+    gain.connect(ctx.destination);
+    gain.gain.setValueAtTime(0.22, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now+0.13);
+    // sine 主体
+    const osc1 = ctx.createOscillator();
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(freq, now);
+    osc1.frequency.exponentialRampToValueAtTime(freq*0.6, now+0.13);
+    osc1.connect(gain);
+    osc1.start(now); osc1.stop(now+0.14);
+    // triangle 泛音（低音量，增加质感）
+    const osc2 = ctx.createOscillator();
+    osc2.type = 'triangle';
+    osc2.frequency.setValueAtTime(freq*2, now);
+    const gain2 = ctx.createGain();
+    gain2.gain.setValueAtTime(0.07, now);
+    gain2.gain.exponentialRampToValueAtTime(0.001, now+0.08);
+    osc2.connect(gain2); gain2.connect(ctx.destination);
+    osc2.start(now); osc2.stop(now+0.09);
+  }catch(e){}
+}
+
 $('random').addEventListener('click',()=>{
   if(!state.artLabels)return;
   state.palette=state.palette.map(()=>[Math.random()*255|0,Math.random()*255|0,Math.random()*255|0]);
   buildSwatches(); repaint();
+  // 弹跳动画
+  const btn = $('random');
+  btn.classList.remove('popping');
+  void btn.offsetWidth; // reflow 重置动画
+  btn.classList.add('popping');
+  btn.addEventListener('animationend',()=>btn.classList.remove('popping'),{once:true});
+  // 音效
+  playSfx();
 });
 
 // =========================================================
