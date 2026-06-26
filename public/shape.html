@@ -4,261 +4,206 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Shape Text — stylejoy</title>
+<link rel="stylesheet" href="/styles.css">
 <style>
-:root{
-  --ink:#16140f;
-  --panel:#1d1b16;
-  --panel-2:#26231c;
-  --line:#37322a;
-  --paper:#e9e3d4;
-  --text:#efe9da;
-  --text-dim:#a9a193;
-  --accent:#e8623a;
-  --accent-2:#f0b429;
-}
-*{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--ink);color:var(--text);font-family:'Inter',system-ui,sans-serif;min-height:100vh;display:flex;flex-direction:column}
-a{color:inherit;text-decoration:none}
+  /* ---- shape.html 专有样式 ---- */
+  #main-canvas{display:block;cursor:crosshair;touch-action:none;border-radius:3px}
 
-/* nav */
-.nav{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-bottom:1px solid var(--line);background:var(--panel);position:sticky;top:0;z-index:100}
-.nav-brand{display:flex;align-items:center;gap:8px;font-weight:700;font-size:15px;color:var(--text)}
-.nav-logo{width:28px;height:28px;border-radius:6px}
-.nav-right{display:flex;align-items:center;gap:12px}
-.nav-link{font-size:13px;color:var(--text-dim)}
-#account-btn{font-size:13px;color:var(--text);background:var(--panel-2);border:1px solid var(--line);border-radius:20px;padding:5px 14px;cursor:pointer;white-space:nowrap}
-#account-btn:hover{border-color:var(--accent);color:var(--accent)}
+  /* canvas hint overlay */
+  .canvas-hint{
+    position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    color:var(--text-dim);font-size:14px;text-align:center;
+    pointer-events:none;line-height:1.7;transition:opacity .3s;
+  }
+  .canvas-hint.hidden{opacity:0}
 
-/* layout */
-.workspace{display:flex;flex:1;overflow:hidden}
-.controls{width:300px;min-width:260px;max-width:340px;background:var(--panel);border-right:1px solid var(--line);overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:14px;flex-shrink:0}
-.canvas-area{flex:1;display:flex;align-items:center;justify-content:center;padding:24px;background:var(--ink);overflow:hidden}
+  /* aspect ratio buttons (in getrow) */
+  .asp-btns{display:flex;gap:5px;flex-shrink:0}
+  .asp-btn{
+    height:42px;padding:0 12px;border-radius:var(--r);cursor:pointer;
+    background:var(--panel-2);border:1px solid var(--line);color:var(--text-dim);
+    font-size:12px;font-weight:600;font-family:var(--font);transition:.12s;white-space:nowrap;
+  }
+  .asp-btn.active,.asp-btn:hover{border-color:var(--accent);color:var(--accent)}
 
-/* control sections */
-.section-title{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text-dim);margin-bottom:4px}
-.ctrl-group{display:flex;flex-direction:column;gap:8px}
-label{font-size:12px;color:var(--text-dim)}
-input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer}
-input[type=color]{width:40px;height:28px;border:1px solid var(--line);border-radius:4px;cursor:pointer;background:none;padding:2px}
-input[type=text],input[type=number],select,textarea{width:100%;background:var(--panel-2);border:1px solid var(--line);border-radius:6px;color:var(--text);font-size:13px;padding:6px 10px;outline:none}
-textarea{resize:vertical;min-height:80px;font-family:inherit;line-height:1.5}
-input[type=text]:focus,input[type=number]:focus,select:focus,textarea:focus{border-color:var(--accent)}
-select option{background:var(--panel-2)}
-.row{display:flex;align-items:center;gap:8px}
-.row label{white-space:nowrap;flex-shrink:0}
-.val{font-size:12px;color:var(--text-dim);min-width:28px;text-align:right}
-.toggle-row{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--text-dim)}
-.toggle{position:relative;width:34px;height:18px;cursor:pointer;flex-shrink:0}
-.toggle input{opacity:0;width:0;height:0}
-.toggle-slider{position:absolute;inset:0;background:var(--line);border-radius:9px;transition:.2s}
-.toggle-slider:before{content:'';position:absolute;width:14px;height:14px;left:2px;top:2px;background:var(--text-dim);border-radius:50%;transition:.2s}
-.toggle input:checked+.toggle-slider{background:var(--accent)}
-.toggle input:checked+.toggle-slider:before{left:18px;background:#fff}
+  /* check / toggle rows using shared .check class */
+  .check-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+  .check-row:last-child{margin-bottom:0}
 
-/* buttons */
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;font-size:13px;font-weight:600;border-radius:8px;padding:8px 14px;cursor:pointer;border:none;transition:background .15s,transform .1s;white-space:nowrap}
-.btn:active{transform:scale(.96)}
-.btn-ghost{background:transparent;color:var(--text-dim);border:1px solid var(--line)}
-.btn-ghost:hover{border-color:var(--text-dim);color:var(--text)}
-.btn-primary{background:var(--accent);color:#fff}
-.btn-primary:hover{filter:brightness(1.1)}
-.btn-accent2{background:var(--accent-2);color:var(--ink)}
-.btn-accent2:hover{filter:brightness(1.05)}
-.btn-sm{font-size:12px;padding:5px 10px}
-.btn-row{display:flex;gap:8px;flex-wrap:wrap}
-.btn-locked{opacity:.55;cursor:not-allowed}
-
-/* canvas wrapper */
-#canvas-wrap{position:relative;background:#fff;box-shadow:0 8px 40px rgba(0,0,0,.5);border-radius:4px;overflow:hidden}
-#main-canvas{display:block;cursor:crosshair;touch-action:none}
-.canvas-hint{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;color:rgba(0,0,0,.25);font-size:14px;line-height:1.6;transition:opacity .3s}
-.canvas-hint.hidden{opacity:0}
-
-/* aspect btns */
-.aspect-btns{display:flex;gap:6px}
-.asp-btn{flex:1;padding:5px 4px;font-size:11px;border-radius:6px;border:1px solid var(--line);background:transparent;color:var(--text-dim);cursor:pointer;transition:.15s}
-.asp-btn.active,.asp-btn:hover{border-color:var(--accent);color:var(--accent);background:rgba(232,98,58,.08)}
-
-/* divider */
-.divider{border:none;border-top:1px solid var(--line);margin:2px 0}
-
-/* modal CSS (shared with app.html, needed for auth.js injected modals) */
-.modal-mask{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:1000;padding:16px}
-.modal-mask.show{display:flex}
-.modal-wrap{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:28px;max-width:380px;width:100%;position:relative;max-height:90vh;overflow-y:auto}
-.modal-title{font-size:17px;font-weight:700;margin-bottom:6px;color:var(--text)}
-.modal-sub{font-size:13px;color:var(--text-dim);margin-bottom:18px;line-height:1.5}
-.modal-close{position:absolute;top:14px;right:14px;background:transparent;border:none;color:var(--text-dim);font-size:20px;cursor:pointer;line-height:1;padding:2px 6px;border-radius:4px}
-.modal-close:hover{color:var(--text)}
-.modal-input{width:100%;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;color:var(--text);font-size:14px;padding:10px 14px;outline:none;margin-bottom:10px}
-.modal-input:focus{border-color:var(--accent)}
-.modal-btn{width:100%;background:var(--accent);color:#fff;border:none;border-radius:8px;padding:11px;font-size:14px;font-weight:600;cursor:pointer;margin-top:4px}
-.modal-btn:hover{filter:brightness(1.1)}
-.msg{font-size:12px;margin-top:8px;min-height:18px;color:var(--text-dim)}
-.msg.ok{color:#4ade80}
-.msg.err{color:#f87171}
-.btn-google{width:100%;background:var(--panel-2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:10px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px}
-.btn-google:hover{border-color:var(--accent)}
-.or-divider{text-align:center;font-size:12px;color:var(--text-dim);margin:6px 0}
-.acct-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px}
-.badge2{display:inline-block;background:var(--accent);color:#fff;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:700}
-.pay-card{background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:10px}
-.pay-card.best{border-color:var(--accent-2)}
-.pc-top{display:flex;align-items:center;gap:8px;margin-bottom:6px}
-.pc-name{font-weight:700;font-size:14px}
-.pc-badge{background:var(--accent-2);color:var(--ink);border-radius:4px;padding:2px 7px;font-size:11px;font-weight:700}
-.pc-price{font-size:22px;font-weight:800;color:var(--text);margin-bottom:4px}
-.pc-desc{font-size:12px;color:var(--text-dim);margin-bottom:10px}
-.pc-btnwrap{min-height:42px}
-
-/* footer */
-footer{text-align:center;padding:12px;font-size:11px;color:var(--text-dim);border-top:1px solid var(--line)}
-footer a{color:var(--text-dim)}
-footer a:hover{color:var(--text)}
-
-/* mobile */
-@media(max-width:680px){
-  .workspace{flex-direction:column}
-  .controls{width:100%;max-width:100%;border-right:none;border-bottom:1px solid var(--line);overflow-y:visible;max-height:none}
-  .canvas-area{padding:12px}
-}
+  /* textarea */
+  #txt-input{
+    width:100%;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;
+    color:var(--text);font-size:12.5px;font-family:var(--font);
+    padding:8px 10px;outline:none;resize:vertical;min-height:80px;line-height:1.5;
+  }
+  #txt-input:focus{border-color:var(--accent)}
 </style>
 </head>
 <body>
+<div class="app">
 
-<nav class="nav">
-  <a class="nav-brand" href="/">
-    <img src="/stylejoy-logo.svg" class="nav-logo" alt="stylejoy">
-    <span>StyleJoy</span>
-  </a>
-  <div class="nav-right">
-    <a class="nav-link" href="/app.html">Poster Maker</a>
-    <button id="account-btn">Sign in</button>
-  </div>
-</nav>
-
-<div class="workspace">
-
-  <!-- Controls -->
-  <aside class="controls">
-
-    <div class="ctrl-group">
-      <div class="section-title">Text Content</div>
-      <textarea id="txt-input" rows="5" placeholder="Type or paste your text here…">To be, or not to be, that is the question: Whether 'tis nobler in the mind to suffer the slings and arrows of outrageous fortune, or to take arms against a sea of troubles and by opposing end them.</textarea>
-      <button class="btn btn-ghost btn-sm" id="btn-import-txt">Import .txt</button>
-      <input type="file" id="file-txt" accept=".txt" style="display:none">
-    </div>
-
-    <hr class="divider">
-
-    <div class="ctrl-group">
-      <div class="section-title">Font</div>
-      <select id="sel-font">
-        <option value="Georgia,serif">Georgia (Serif)</option>
-        <option value="'Times New Roman',serif">Times New Roman</option>
-        <option value="system-ui,sans-serif">System Sans-Serif</option>
-        <option value="'Courier New',monospace">Courier New (Mono)</option>
-        <option value="'Noto Serif SC',serif">Noto Serif SC (中文)</option>
-      </select>
-      <button class="btn btn-ghost btn-sm" id="btn-upload-font">Upload font (.ttf/.otf) — HD only</button>
-      <input type="file" id="file-font" accept=".ttf,.otf,.woff,.woff2" style="display:none">
-
-      <div class="row">
-        <label>Size</label>
-        <input type="range" id="sl-size" min="6" max="72" value="16" style="flex:1">
-        <span class="val" id="v-size">16</span>
+  <!-- ===== LEFT: canvas stage ===== -->
+  <main class="stage" id="stage">
+    <div class="leftbar">
+      <div class="brand">
+        <h1>
+          <img src="/stylejoy-logo.svg" class="brand-logo" alt="stylejoy">
+          <span class="title-text" data-i18n="shape_title">StyleJoy.art</span>
+          <button class="pill" id="lang-toggle">EN</button>
+          <button class="pill" id="account-btn">Sign in</button>
+        </h1>
+        <p data-i18n="shape_subtitle">Draw a shape → fill with text</p>
       </div>
-      <div class="row">
-        <label>Weight</label>
-        <select id="sel-weight" style="flex:1">
-          <option value="400">Regular</option>
-          <option value="700">Bold</option>
-        </select>
-      </div>
-      <div class="row">
-        <label>Line h.</label>
-        <input type="range" id="sl-lh" min="80" max="300" value="140" style="flex:1">
-        <span class="val" id="v-lh">1.40</span>
-      </div>
-      <div class="row">
-        <label>Spacing</label>
-        <input type="range" id="sl-ls" min="-20" max="80" value="0" style="flex:1">
-        <span class="val" id="v-ls">0</span>
-      </div>
-      <div class="row">
-        <label>Padding</label>
-        <input type="range" id="sl-pad" min="0" max="80" value="12" style="flex:1">
-        <span class="val" id="v-pad">12</span>
+      <div class="getrow">
+        <button class="samplebtn fx-btn" id="btn-undo" data-i18n="shape_undo">↩ Undo</button>
+        <button class="samplebtn fx-btn" id="btn-clear" data-i18n="shape_clear">Clear</button>
+        <div class="asp-btns">
+          <button class="asp-btn active" data-asp="1:1">1:1</button>
+          <button class="asp-btn" data-asp="4:5">4:5</button>
+          <button class="asp-btn" data-asp="9:16">9:16</button>
+        </div>
       </div>
     </div>
 
-    <hr class="divider">
-
-    <div class="ctrl-group">
-      <div class="section-title">Colors</div>
-      <div class="row">
-        <label>Text</label>
-        <input type="color" id="cp-text" value="#1d1b16">
-      </div>
-      <div class="row">
-        <label>Background</label>
-        <input type="color" id="cp-bg" value="#f4ead2">
-      </div>
-      <div class="toggle-row">
-        <span>Show shape outline</span>
-        <label class="toggle"><input type="checkbox" id="tog-outline"><span class="toggle-slider"></span></label>
-      </div>
-      <div class="toggle-row">
-        <span>Repeat text to fill</span>
-        <label class="toggle"><input type="checkbox" id="tog-repeat" checked><span class="toggle-slider"></span></label>
+    <div class="preview">
+      <div class="canvas-wrap" id="canvas-wrap">
+        <canvas id="main-canvas"></canvas>
+        <div class="canvas-hint" id="canvas-hint">
+          <b data-i18n="shape_hint_b">Draw a shape</b><br>
+          <span data-i18n="shape_hint_s">Click and drag on the canvas</span>
+        </div>
       </div>
     </div>
+  </main>
 
-    <hr class="divider">
+  <!-- ===== RIGHT: control panel ===== -->
+  <aside class="panel">
+    <div class="scroll">
 
-    <div class="ctrl-group">
-      <div class="section-title">Canvas</div>
-      <div class="aspect-btns">
-        <button class="asp-btn active" data-asp="1:1">1 : 1</button>
-        <button class="asp-btn" data-asp="4:5">4 : 5</button>
-        <button class="asp-btn" data-asp="9:16">9 : 16</button>
+      <!-- Text content -->
+      <div class="group">
+        <h2><span class="bar"></span><span data-i18n="shape_g_text">Text Content</span></h2>
+        <div class="field">
+          <textarea id="txt-input" rows="5">To be, or not to be, that is the question: Whether 'tis nobler in the mind to suffer the slings and arrows of outrageous fortune, or to take arms against a sea of troubles and by opposing end them.</textarea>
+        </div>
+        <button class="btn btn-ghost" id="btn-import-txt" data-i18n="shape_import_txt">Import .txt</button>
+        <input type="file" id="file-txt" accept=".txt" hidden>
       </div>
-    </div>
 
-    <hr class="divider">
-
-    <div class="ctrl-group">
-      <div class="section-title">Shape</div>
-      <div class="btn-row">
-        <button class="btn btn-ghost btn-sm" id="btn-undo">↩ Undo</button>
-        <button class="btn btn-ghost btn-sm" id="btn-clear">Clear</button>
+      <!-- Font -->
+      <div class="group">
+        <h2><span class="bar"></span><span data-i18n="shape_g_font">Font</span></h2>
+        <div class="field">
+          <div class="row">
+            <label data-i18n="shape_f_family">Font family</label>
+          </div>
+          <select class="sel" id="sel-font">
+            <option value="Georgia,serif">Georgia (Serif)</option>
+            <option value="'Times New Roman',serif">Times New Roman</option>
+            <option value="system-ui,sans-serif">System Sans-Serif</option>
+            <option value="'Courier New',monospace">Courier New (Mono)</option>
+            <option value="'Noto Serif SC',serif">Noto Serif SC (中文)</option>
+          </select>
+        </div>
+        <button class="btn btn-ghost fx-btn" id="btn-upload-font" style="margin-bottom:14px" data-i18n="shape_upload_font">Upload font (.ttf/.otf) — HD only</button>
+        <input type="file" id="file-font" accept=".ttf,.otf,.woff,.woff2" hidden>
+        <div class="field">
+          <div class="row">
+            <label data-i18n="shape_f_weight">Weight</label>
+          </div>
+          <select class="sel" id="sel-weight">
+            <option value="400">Regular (400)</option>
+            <option value="700">Bold (700)</option>
+          </select>
+        </div>
+        <div class="field">
+          <div class="row">
+            <label data-i18n="shape_f_size">Size</label>
+            <span class="val" id="v-size">16</span>
+          </div>
+          <input type="range" id="sl-size" min="6" max="72" value="16">
+        </div>
+        <div class="field">
+          <div class="row">
+            <label data-i18n="shape_f_lh">Line height</label>
+            <span class="val" id="v-lh">1.40</span>
+          </div>
+          <input type="range" id="sl-lh" min="80" max="300" value="140">
+        </div>
+        <div class="field">
+          <div class="row">
+            <label data-i18n="shape_f_ls">Letter spacing</label>
+            <span class="val" id="v-ls">0.0</span>
+          </div>
+          <input type="range" id="sl-ls" min="-20" max="80" value="0">
+        </div>
+        <div class="field">
+          <div class="row">
+            <label data-i18n="shape_f_pad">Padding</label>
+            <span class="val" id="v-pad">12</span>
+          </div>
+          <input type="range" id="sl-pad" min="0" max="80" value="12">
+        </div>
       </div>
+
+      <!-- Colors -->
+      <div class="group">
+        <h2><span class="bar"></span><span data-i18n="shape_g_colors">Colors</span></h2>
+        <div class="duo">
+          <div class="field">
+            <div class="row"><label data-i18n="shape_f_ink">Text</label></div>
+            <button class="colorbtn" id="cp-text-btn">
+              <span class="chip" id="cp-text-chip" style="background:#1d1b16"></span>
+              <span id="cp-text-val">#1d1b16</span>
+              <input type="color" id="cp-text" value="#1d1b16">
+            </button>
+          </div>
+          <div class="field">
+            <div class="row"><label data-i18n="shape_f_bg">Background</label></div>
+            <button class="colorbtn" id="cp-bg-btn">
+              <span class="chip" id="cp-bg-chip" style="background:#f4ead2"></span>
+              <span id="cp-bg-val">#f4ead2</span>
+              <input type="color" id="cp-bg" value="#f4ead2">
+            </button>
+          </div>
+        </div>
+        <div class="check-row">
+          <label class="check" for="tog-outline">
+            <input type="checkbox" id="tog-outline">
+            <span data-i18n="shape_outline">Show outline</span>
+          </label>
+        </div>
+        <div class="check-row">
+          <label class="check" for="tog-repeat">
+            <input type="checkbox" id="tog-repeat" checked>
+            <span data-i18n="shape_repeat">Repeat text</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Export -->
+      <div class="group">
+        <h2><span class="bar"></span><span data-i18n="shape_g_export">Export</span></h2>
+        <button class="btn btn-ghost" id="btn-export-free" style="margin-bottom:8px">
+          <span data-i18n="shape_export_free">Export free</span>
+          <span style="font-size:11px;color:var(--text-dim);margin-left:4px">1080px · watermark</span>
+        </button>
+        <button class="btn btn-primary" id="btn-export-hd">
+          <span data-i18n="shape_export_hd">Export HD</span>
+          <span style="font-size:11px;opacity:.75;margin-left:4px">3000px · no watermark</span>
+        </button>
+      </div>
+
     </div>
-
-    <hr class="divider">
-
-    <div class="ctrl-group">
-      <div class="section-title">Export</div>
-      <button class="btn btn-ghost" id="btn-export-free">Export free → <span style="font-size:11px;color:var(--text-dim)">1080px · watermark</span></button>
-      <button class="btn btn-primary" id="btn-export-hd">Export HD → <span style="font-size:11px;opacity:.75">3000px · no watermark</span></button>
-    </div>
-
   </aside>
 
-  <!-- Canvas -->
-  <div class="canvas-area">
-    <div id="canvas-wrap">
-      <canvas id="main-canvas"></canvas>
-      <div class="canvas-hint" id="canvas-hint">Draw a shape<br><span style="font-size:12px">Click and drag to draw</span></div>
-    </div>
-  </div>
 </div>
 
-<footer>
-  <a href="/privacy.html">Privacy</a>
-  <span style="margin:0 6px">·</span>
-  <a href="/terms.html">Terms</a>
-  <span style="margin:0 6px">·</span>
+<footer id="site-footer">
+  <a href="/privacy.html" target="_blank" rel="noopener">Privacy</a>
+  <span class="sep">·</span>
+  <a href="/terms.html" target="_blank" rel="noopener">Terms</a>
+  <span class="sep">·</span>
   <span>© 2026 stylejoy</span>
 </footer>
 
@@ -269,21 +214,73 @@ footer a:hover{color:var(--text)}
 (function(){
 'use strict';
 
+// ===== i18n =====
+const SHAPE_I18N = {
+  zh:{
+    shape_title:'StyleJoy.art', shape_subtitle:'绘制区域 · 文字填充',
+    shape_hint_b:'绘制一个形状', shape_hint_s:'在画布上点击并拖动',
+    shape_undo:'↩ 撤销', shape_clear:'清除',
+    shape_g_text:'文字内容', shape_import_txt:'导入 .txt 文件',
+    shape_g_font:'字体', shape_f_family:'字体系列', shape_upload_font:'上传字体（.ttf/.otf）— 仅高清',
+    shape_f_weight:'字重', shape_f_size:'字号', shape_f_lh:'行高', shape_f_ls:'字间距', shape_f_pad:'边距',
+    shape_g_colors:'颜色', shape_f_ink:'文字颜色', shape_f_bg:'背景颜色',
+    shape_outline:'显示轮廓', shape_repeat:'循环填充文字',
+    shape_g_export:'导出', shape_export_free:'免费导出', shape_export_hd:'高清导出',
+  },
+  en:{
+    shape_title:'StyleJoy.art', shape_subtitle:'Draw a shape → fill with text',
+    shape_hint_b:'Draw a shape', shape_hint_s:'Click and drag on the canvas',
+    shape_undo:'↩ Undo', shape_clear:'Clear',
+    shape_g_text:'Text Content', shape_import_txt:'Import .txt',
+    shape_g_font:'Font', shape_f_family:'Font family', shape_upload_font:'Upload font (.ttf/.otf) — HD only',
+    shape_f_weight:'Weight', shape_f_size:'Size', shape_f_lh:'Line height', shape_f_ls:'Letter spacing', shape_f_pad:'Padding',
+    shape_g_colors:'Colors', shape_f_ink:'Text', shape_f_bg:'Background',
+    shape_outline:'Show outline', shape_repeat:'Repeat text',
+    shape_g_export:'Export', shape_export_free:'Export free', shape_export_hd:'Export HD',
+  },
+};
+let lang = 'en';
+try{ const s = localStorage.getItem('ri_lang'); if(s==='zh'||s==='en') lang=s; }catch(e){}
+
+function t(key){ return (SHAPE_I18N[lang]||SHAPE_I18N.en)[key] || key; }
+function applyShapeLang(){
+  document.documentElement.lang = lang==='zh' ? 'zh-CN' : 'en';
+  document.querySelectorAll('[data-i18n]').forEach(el=>{ el.textContent = t(el.dataset.i18n); });
+  const lt = document.getElementById('lang-toggle');
+  if(lt) lt.textContent = lang==='zh' ? 'EN' : '中';
+}
+
+const langToggle = document.getElementById('lang-toggle');
+if(langToggle){
+  langToggle.addEventListener('click', ()=>{
+    lang = lang==='zh' ? 'en' : 'zh';
+    try{ localStorage.setItem('ri_lang', lang); }catch(e){}
+    applyShapeLang();
+    // also update auth modal lang if present
+    if(window.kidartAuth && window.kidartAuth.refresh) {
+      // trigger auth.js applyAuthLang via click timing
+      setTimeout(()=>{ document.querySelectorAll('[data-i18n2]').forEach(el=>{
+        /* auth.js will handle these on next openModal call */
+      }); }, 0);
+    }
+  });
+}
+
 // ===== Constants =====
-const LOGICAL = 800;   // logical canvas size (short edge)
-const MIN_DIST = 6;    // min px between path points during drawing
+const LOGICAL = 800;
+const MIN_DIST = 6;
 
 // ===== State =====
-let paths = [];         // array of normalized subpaths [{x,y}[]]
-let currentPath = null; // path being drawn right now
-let uploadedFont = null; // FontFace when user uploads custom font
+let paths = [];
+let currentPath = null;
+let uploadedFont = null;
 let renderTimer = null;
 
 // ===== Canvas setup =====
-const wrap = document.getElementById('canvas-wrap');
+const wrap   = document.getElementById('canvas-wrap');
 const canvas = document.getElementById('main-canvas');
-const ctx = canvas.getContext('2d');
-const hint = document.getElementById('canvas-hint');
+const ctx    = canvas.getContext('2d');
+const hint   = document.getElementById('canvas-hint');
 
 let aspectW = 1, aspectH = 1;
 let canvasW = LOGICAL, canvasH = LOGICAL;
@@ -293,10 +290,14 @@ function setAspect(ratio){
   aspectW = w; aspectH = h;
   canvasW = LOGICAL;
   canvasH = Math.round(LOGICAL * h / w);
-  canvas.width = canvasW;
+  canvas.width  = canvasW;
   canvas.height = canvasH;
-  wrap.style.width = canvasW + 'px';
-  wrap.style.height = canvasH + 'px';
+  // let CSS scale it to fit the preview area
+  const maxW = wrap.parentElement.clientWidth  - 60;
+  const maxH = wrap.parentElement.clientHeight - 60;
+  const scale = Math.min(maxW / canvasW, maxH / canvasH, 1);
+  wrap.style.width  = Math.round(canvasW * scale) + 'px';
+  wrap.style.height = Math.round(canvasH * scale) + 'px';
   scheduleRender();
 }
 
@@ -309,35 +310,43 @@ document.querySelectorAll('.asp-btn').forEach(btn=>{
 });
 
 // ===== Controls =====
-const slSize   = document.getElementById('sl-size');
-const slLH     = document.getElementById('sl-lh');
-const slLS     = document.getElementById('sl-ls');
-const slPad    = document.getElementById('sl-pad');
-const vSize    = document.getElementById('v-size');
-const vLH      = document.getElementById('v-lh');
-const vLS      = document.getElementById('v-ls');
-const vPad     = document.getElementById('v-pad');
-const selFont  = document.getElementById('sel-font');
-const selWeight= document.getElementById('sel-weight');
-const cpText   = document.getElementById('cp-text');
-const cpBg     = document.getElementById('cp-bg');
+const slSize    = document.getElementById('sl-size');
+const slLH      = document.getElementById('sl-lh');
+const slLS      = document.getElementById('sl-ls');
+const slPad     = document.getElementById('sl-pad');
+const vSize     = document.getElementById('v-size');
+const vLH       = document.getElementById('v-lh');
+const vLS       = document.getElementById('v-ls');
+const vPad      = document.getElementById('v-pad');
+const selFont   = document.getElementById('sel-font');
+const selWeight = document.getElementById('sel-weight');
+const cpText    = document.getElementById('cp-text');
+const cpBg      = document.getElementById('cp-bg');
 const togOutline= document.getElementById('tog-outline');
 const togRepeat = document.getElementById('tog-repeat');
 const txtInput  = document.getElementById('txt-input');
 
+// colorbtn chip + value sync
+function syncColorBtn(colorInput, chipEl, valEl){
+  chipEl.style.background = colorInput.value;
+  valEl.textContent = colorInput.value;
+}
+cpText.addEventListener('input', ()=>{ syncColorBtn(cpText, document.getElementById('cp-text-chip'), document.getElementById('cp-text-val')); scheduleRender(); });
+cpBg.addEventListener('input',   ()=>{ syncColorBtn(cpBg,   document.getElementById('cp-bg-chip'),   document.getElementById('cp-bg-val'));   scheduleRender(); });
+
 function getParams(){
   return {
-    fontSize:   parseInt(slSize.value),
-    lineHeight: parseInt(slLH.value)/100,
+    fontSize:      parseInt(slSize.value),
+    lineHeight:    parseInt(slLH.value)/100,
     letterSpacing: parseInt(slLS.value)/10,
-    padding:    parseInt(slPad.value),
-    fontFamily: uploadedFont ? uploadedFont.family : selFont.value,
-    fontWeight: selWeight.value,
-    textColor:  cpText.value,
-    bgColor:    cpBg.value,
-    outline:    togOutline.checked,
-    repeat:     togRepeat.checked,
-    text:       txtInput.value || ' ',
+    padding:       parseInt(slPad.value),
+    fontFamily:    uploadedFont ? uploadedFont.family : selFont.value,
+    fontWeight:    selWeight.value,
+    textColor:     cpText.value,
+    bgColor:       cpBg.value,
+    outline:       togOutline.checked,
+    repeat:        togRepeat.checked,
+    text:          txtInput.value || ' ',
   };
 }
 
@@ -355,8 +364,8 @@ function scheduleRender(){
     scheduleRender();
   });
 });
-[selFont,selWeight,cpText,cpBg,togOutline,togRepeat,txtInput].forEach(el=>{
-  el.addEventListener('input', scheduleRender);
+[selFont,selWeight,togOutline,togRepeat,txtInput].forEach(el=>{
+  el.addEventListener('input',  scheduleRender);
   el.addEventListener('change', scheduleRender);
 });
 
@@ -387,29 +396,27 @@ function moveDraw(e){
   renderLive();
 }
 function endDraw(e){
-  if(!currentPath || currentPath.length < 3) { currentPath=null; return; }
-  // Close shape
+  if(!currentPath || currentPath.length < 3){ currentPath=null; return; }
   currentPath.push(currentPath[0]);
   paths.push(currentPath);
   currentPath = null;
-  if(paths.length === 1 && hint) hint.classList.add('hidden');
+  if(paths.length===1 && hint) hint.classList.add('hidden');
   scheduleRender();
 }
 
-canvas.addEventListener('mousedown', startDraw);
-canvas.addEventListener('mousemove', moveDraw);
-canvas.addEventListener('mouseup',   endDraw);
-canvas.addEventListener('mouseleave',endDraw);
+canvas.addEventListener('mousedown',  startDraw);
+canvas.addEventListener('mousemove',  moveDraw);
+canvas.addEventListener('mouseup',    endDraw);
+canvas.addEventListener('mouseleave', endDraw);
 canvas.addEventListener('touchstart', startDraw, {passive:false});
 canvas.addEventListener('touchmove',  moveDraw,  {passive:false});
 canvas.addEventListener('touchend',   endDraw);
 
 function renderLive(){
-  // quick preview without fill
   const p = getParams();
   ctx.fillStyle = p.bgColor;
   ctx.fillRect(0,0,canvasW,canvasH);
-  drawAllPaths(ctx, canvasW, canvasH, p.outline || true);
+  drawAllPaths(ctx, canvasW, canvasH, true);
   if(currentPath && currentPath.length>1){
     ctx.strokeStyle = '#888';
     ctx.lineWidth = 1.5;
@@ -428,15 +435,14 @@ document.getElementById('btn-undo').addEventListener('click', ()=>{
   scheduleRender();
 });
 document.getElementById('btn-clear').addEventListener('click', ()=>{
-  paths=[];
-  currentPath=null;
+  paths=[]; currentPath=null;
   if(hint) hint.classList.remove('hidden');
   scheduleRender();
 });
 
 // ===== Font upload (premium) =====
 document.getElementById('btn-upload-font').addEventListener('click', async ()=>{
-  if(!window.kidartAuth){ alert('Auth loading…'); return; }
+  if(!window.kidartAuth){ return; }
   const ok = await window.kidartAuth.requireAccess();
   if(!ok) return;
   document.getElementById('file-font').click();
@@ -450,7 +456,6 @@ document.getElementById('file-font').addEventListener('change', async (e)=>{
     await ff.load();
     document.fonts.add(ff);
     uploadedFont = ff;
-    // Update dropdown to show custom
     const opt = document.createElement('option');
     opt.value = family; opt.textContent = file.name; opt.selected = true;
     selFont.appendChild(opt);
@@ -473,7 +478,6 @@ document.getElementById('file-txt').addEventListener('change', (e)=>{
 
 // ===== Scanline fill =====
 function buildMask(offCtx, w, h){
-  // draw all closed paths filled on the mask canvas
   offCtx.clearRect(0,0,w,h);
   offCtx.fillStyle = '#000';
   if(paths.length===0) return;
@@ -491,21 +495,19 @@ function scanlineFill(targetCtx, w, h, params){
   const { fontSize, lineHeight, letterSpacing, padding, fontFamily, fontWeight, textColor, repeat, text } = params;
   const lineStep = fontSize * lineHeight;
 
-  // build mask
   const offCvs = document.createElement('canvas');
   offCvs.width = w; offCvs.height = h;
   const offCtx = offCvs.getContext('2d');
   buildMask(offCtx, w, h);
   const pxData = offCtx.getImageData(0, 0, w, h).data;
 
-  // find bounding box of mask
   let minY=h, maxY=0;
   for(let y=0;y<h;y++){
     for(let x=0;x<w;x++){
       if(pxData[(y*w+x)*4+3]>128){ if(y<minY)minY=y; if(y>maxY)maxY=y; break; }
     }
   }
-  if(minY>maxY) return; // no shape
+  if(minY>maxY) return;
 
   targetCtx.save();
   targetCtx.fillStyle = textColor;
@@ -514,19 +516,17 @@ function scanlineFill(targetCtx, w, h, params){
 
   let charIdx = 0;
   const chars = [...text];
-  if(chars.length===0) { targetCtx.restore(); return; }
+  if(chars.length===0){ targetCtx.restore(); return; }
 
   for(let y = minY + padding + fontSize*0.1; y < maxY - padding; y += lineStep){
     const rowY = Math.round(y);
     if(rowY < 0 || rowY >= h) continue;
 
-    // find inside spans on this scanline
     const spans = [];
     let inside = false, spanStart = 0;
     for(let x=0;x<w;x++){
       const inMask = pxData[(rowY*w+x)*4+3]>128;
       if(inMask && !inside){ inside=true; spanStart=x; }
-      else if(!inside && inside){ /* impossible */ }
       if(!inMask && inside){ inside=false; spans.push([spanStart+padding, x-padding]); }
     }
     if(inside) spans.push([spanStart+padding, w-padding]);
@@ -554,22 +554,21 @@ function scanlineFill(targetCtx, w, h, params){
 // ===== Draw paths outline =====
 function drawAllPaths(targetCtx, w, h, showOutline){
   if(paths.length===0) return;
-  if(showOutline){
-    targetCtx.save();
-    targetCtx.strokeStyle = 'rgba(0,0,0,0.2)';
-    targetCtx.lineWidth = 1;
-    targetCtx.setLineDash([]);
-    paths.forEach(path=>{
-      targetCtx.beginPath();
-      path.forEach((pt,i)=>{
-        const x=pt.x*w, y=pt.y*h;
-        i===0 ? targetCtx.moveTo(x,y) : targetCtx.lineTo(x,y);
-      });
-      targetCtx.closePath();
-      targetCtx.stroke();
+  if(!showOutline) return;
+  targetCtx.save();
+  targetCtx.strokeStyle = 'rgba(0,0,0,0.2)';
+  targetCtx.lineWidth = 1;
+  targetCtx.setLineDash([]);
+  paths.forEach(path=>{
+    targetCtx.beginPath();
+    path.forEach((pt,i)=>{
+      const x=pt.x*w, y=pt.y*h;
+      i===0 ? targetCtx.moveTo(x,y) : targetCtx.lineTo(x,y);
     });
-    targetCtx.restore();
-  }
+    targetCtx.closePath();
+    targetCtx.stroke();
+  });
+  targetCtx.restore();
 }
 
 // ===== Main render =====
@@ -577,7 +576,6 @@ function render(){
   const p = getParams();
   ctx.fillStyle = p.bgColor;
   ctx.fillRect(0,0,canvasW,canvasH);
-
   if(paths.length > 0){
     scanlineFill(ctx, canvasW, canvasH, p);
     drawAllPaths(ctx, canvasW, canvasH, p.outline);
@@ -599,7 +597,7 @@ function addWatermark(targetCtx, w, h){
 // ===== Export =====
 async function doExport(free){
   if(!free){
-    if(!window.kidartAuth){ alert('Auth loading…'); return; }
+    if(!window.kidartAuth){ return; }
     const ok = await window.kidartAuth.requireAccess();
     if(!ok) return;
   }
@@ -614,18 +612,16 @@ async function doExport(free){
   offCvs.width = tw; offCvs.height = th;
   const offCtx = offCvs.getContext('2d');
 
-  // Scale params for export resolution
   const ep = Object.assign({}, p, {
-    fontSize: p.fontSize * scale,
+    fontSize:      p.fontSize * scale,
     letterSpacing: p.letterSpacing * scale,
-    padding: p.padding * scale,
+    padding:       p.padding * scale,
   });
 
   offCtx.fillStyle = p.bgColor;
   offCtx.fillRect(0,0,tw,th);
 
   if(paths.length > 0){
-    // Scale paths are already normalized → use tw/th directly
     scanlineFill(offCtx, tw, th, ep);
     drawAllPaths(offCtx, tw, th, p.outline);
   }
@@ -652,8 +648,14 @@ document.getElementById('btn-export-free').addEventListener('click', ()=>doExpor
 document.getElementById('btn-export-hd').addEventListener('click',   ()=>doExport(false));
 
 // ===== Init =====
+applyShapeLang();
 setAspect('1:1');
 render();
+
+// Resize: re-fit canvas when window resizes
+window.addEventListener('resize', ()=>{ setAspect(
+  document.querySelector('.asp-btn.active')?.dataset.asp || '1:1'
+); });
 
 })();
 </script>

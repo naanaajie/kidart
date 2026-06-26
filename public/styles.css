@@ -1,0 +1,312 @@
+/* ===== stylejoy shared design system =====
+   Loaded by all tools (app.html, shape.html, …).
+   Tool-specific rules stay in each file's <style> block.
+   ================================================= */
+
+:root{
+  --ink:#16140f;
+  --panel:#1d1b16;
+  --panel-2:#26231c;
+  --line:#37322a;
+  --paper:#e9e3d4;
+  --paper-2:#d8d0bd;
+  --text:#efe9da;
+  --text-dim:#a9a193;
+  --accent:#e8623a;
+  --accent-2:#f0b429;
+  --r:10px;
+  --font:"Helvetica Neue",-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:var(--font);
+  background:var(--ink);
+  color:var(--text);
+  -webkit-font-smoothing:antialiased;
+  overflow:hidden;
+}
+
+/* ---- App shell ---- */
+.app{display:flex;height:100vh;width:100vw}
+
+/* ---- Right panel (control sidebar) ---- */
+.panel{
+  width:372px;flex:0 0 372px;
+  background:var(--panel);
+  border-left:1px solid var(--line);
+  display:flex;flex-direction:column;
+  height:100%;
+}
+
+/* ---- Left top bar (brand + lang toggle) ---- */
+.leftbar{flex:0 0 auto;border-bottom:1px solid var(--line)}
+.brand{padding:16px 22px 12px}
+.brand h1{
+  font-size:16px;font-weight:800;letter-spacing:.04em;
+  display:flex;align-items:center;gap:9px;
+}
+.brand-logo{height:26px;width:auto;display:block}
+.brand p{font-size:11px;color:var(--text-dim);margin-top:6px;letter-spacing:.02em}
+
+/* ---- Scrollable panel body ---- */
+.scroll{flex:1;overflow-y:auto;padding:4px 0 24px}
+.scroll::-webkit-scrollbar{width:8px}
+.scroll::-webkit-scrollbar-thumb{background:var(--line);border-radius:8px}
+
+/* ---- Control groups ---- */
+.group{border-bottom:1px solid var(--line);padding:16px 20px}
+.group h2{
+  font-size:11px;font-weight:700;letter-spacing:.12em;
+  color:var(--text-dim);text-transform:uppercase;
+  margin-bottom:14px;display:flex;align-items:center;gap:7px;
+}
+.group h2 .bar{width:14px;height:2px;background:var(--accent);flex-shrink:0}
+
+/* ---- Field rows ---- */
+.field{margin-bottom:15px}
+.field:last-child{margin-bottom:0}
+.field .row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px}
+.field label{font-size:12.5px;color:var(--text)}
+.field .val{font-size:12px;color:var(--accent-2);font-variant-numeric:tabular-nums;font-weight:600}
+
+/* ---- Range sliders ---- */
+input[type=range]{
+  -webkit-appearance:none;width:100%;height:3px;border-radius:3px;
+  background:var(--line);outline:none;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:15px;height:15px;border-radius:50%;
+  background:var(--paper);cursor:pointer;border:3px solid var(--accent);
+  transition:transform .1s;
+}
+input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.15)}
+input[type=range]::-moz-range-thumb{
+  width:15px;height:15px;border-radius:50%;background:var(--paper);
+  cursor:pointer;border:3px solid var(--accent)}
+
+/* ---- Upload row (used in app.html; harmless in shape.html) ---- */
+.getrow{display:flex;gap:10px;padding:0 22px 16px}
+.drop{
+  flex:1;display:flex;align-items:center;justify-content:center;gap:8px;
+  height:42px;padding:0 12px;cursor:pointer;white-space:nowrap;
+  border:1.5px dashed var(--line);border-radius:var(--r);
+  background:var(--panel-2);color:var(--text-dim);font-size:12.5px;transition:.15s;
+}
+.drop:hover,.drop.over{border-color:var(--accent);color:var(--text);background:#2c2820}
+.drop .ico{font-size:16px;opacity:.75}
+.drop b{color:var(--text);font-size:12.5px;font-weight:600}
+.samplebtn{
+  flex:1;display:flex;align-items:center;justify-content:center;gap:7px;
+  height:42px;border-radius:var(--r);cursor:pointer;white-space:nowrap;
+  background:var(--panel-2);border:1px solid var(--line);color:var(--text);
+  font-size:12.5px;font-weight:600;font-family:var(--font);transition:.12s;
+}
+.samplebtn:hover{border-color:var(--accent)}
+
+/* ---- Color controls ---- */
+.duo{display:flex;gap:10px}
+.duo .field{flex:1}
+.colorbtn{display:flex;align-items:center;gap:8px;width:100%;
+  background:var(--panel-2);border:1px solid var(--line);border-radius:8px;
+  padding:7px 9px;cursor:pointer;position:relative}
+.colorbtn .chip{width:20px;height:20px;border-radius:5px;border:1px solid rgba(255,255,255,.15)}
+.colorbtn span{font-size:12px}
+.colorbtn input{position:absolute;inset:0;opacity:0;cursor:pointer}
+
+/* ---- Select ---- */
+select.sel{width:100%;background:var(--panel-2);border:1px solid var(--line);
+  color:var(--text);border-radius:8px;padding:8px 9px;font-size:12.5px;
+  font-family:var(--font);cursor:pointer;-webkit-appearance:none;appearance:none;
+  background-image:linear-gradient(45deg,transparent 50%,var(--text-dim) 50%),
+    linear-gradient(135deg,var(--text-dim) 50%,transparent 50%);
+  background-position:calc(100% - 16px) 16px,calc(100% - 11px) 16px;
+  background-size:5px 5px,5px 5px;background-repeat:no-repeat}
+select.sel:focus{outline:none;border-color:var(--accent)}
+
+.hint-text{font-size:11px;color:var(--text-dim);line-height:1.6;margin-top:-2px}
+.mini-label{display:block;margin-bottom:7px;font-size:12px;color:var(--text)}
+
+/* ---- Tab switcher ---- */
+.tabs{display:flex;background:var(--panel-2);border:1px solid var(--line);
+  border-radius:9px;padding:3px;margin-bottom:14px;gap:2px}
+.tab{flex:1;border:none;background:transparent;color:var(--text-dim);
+  font-size:12.5px;font-weight:600;padding:8px 4px;border-radius:6px;cursor:pointer;
+  font-family:var(--font);transition:.12s}
+.tab.active{background:var(--accent);color:#fff}
+.exp-panel[hidden]{display:none}
+
+/* ---- Segmented buttons ---- */
+.seg{display:flex;gap:6px}
+.seg button{flex:1;background:var(--panel-2);border:1px solid var(--line);color:var(--text-dim);
+  font-size:11.5px;font-weight:600;padding:8px 4px;border-radius:7px;cursor:pointer;
+  font-family:var(--font);transition:.12s;white-space:nowrap}
+.seg button.active{border-color:var(--accent);color:var(--text);background:#2c2820}
+
+/* ---- Buttons ---- */
+.btn{
+  width:100%;border:none;border-radius:9px;padding:11px;cursor:pointer;
+  font-size:13px;font-weight:700;font-family:var(--font);letter-spacing:.03em;
+  transition:.12s;
+}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:#f06f48}
+.btn-ghost{background:var(--panel-2);color:var(--text);border:1px solid var(--line)}
+.btn-ghost:hover{border-color:var(--text-dim)}
+
+.btn-row{display:flex;gap:9px}
+.btn-row .btn{flex:1}
+
+/* ---- fx-btn (Randomize / Re-segment style) ---- */
+.fx-btn{
+  background:var(--panel-2);color:var(--text);border:1px solid var(--line);
+  transition:transform .1s ease, background .1s ease, box-shadow .1s ease;
+  will-change:transform;
+}
+.fx-btn:hover{
+  background:#2c2820;border-color:var(--accent);
+  box-shadow:0 0 0 2px rgba(232,98,58,.25);
+  transform:scale(1.02);
+}
+.fx-btn:active{
+  transform:scale(0.93);
+  background:var(--accent);color:#fff;border-color:var(--accent);
+  box-shadow:0 0 0 3px rgba(232,98,58,.35);
+}
+@keyframes randPop{
+  0%  {transform:scale(0.93)}
+  55% {transform:scale(1.07)}
+  80% {transform:scale(0.98)}
+  100%{transform:scale(1)}
+}
+.fx-btn.popping{animation:randPop .22s ease forwards}
+
+/* ---- Checkbox ---- */
+.check{display:flex;align-items:center;gap:9px;cursor:pointer;font-size:12.5px}
+.check input{width:16px;height:16px;accent-color:var(--accent)}
+
+/* ---- Pill buttons (lang toggle, account) ---- */
+.pill{background:var(--panel-2);border:1px solid var(--line);
+  color:var(--text);font-size:12px;padding:6px 12px;border-radius:20px;cursor:pointer;
+  font-weight:600;transition:.12s}
+.pill:hover{border-color:var(--accent)}
+#lang-toggle{margin-left:auto;min-width:42px;text-align:center;font-weight:700}
+#account-btn{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ---- Left stage (canvas area) ---- */
+.stage{
+  flex:1;min-width:0;position:relative;
+  display:flex;flex-direction:column;
+  background:radial-gradient(circle at 30% 18%, #211e18, var(--ink) 70%);
+  overflow:hidden;
+}
+.preview{flex:1;min-height:0;position:relative;
+  display:flex;align-items:center;justify-content:center;padding:30px}
+.canvas-wrap{
+  position:relative;max-width:100%;
+  max-height:var(--canvas-maxh, calc(100vh - 210px));
+  box-shadow:0 30px 80px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.05);
+  border-radius:3px;background:#fff;
+}
+canvas{display:block;max-width:100%;
+  max-height:var(--canvas-maxh, calc(100vh - 210px));border-radius:3px}
+.empty-hint{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  color:var(--text-dim);font-size:14px;text-align:center;
+  pointer-events:none;line-height:1.7}
+.empty-hint b{color:var(--text);font-size:16px}
+
+.badge{position:absolute;bottom:10px;right:10px;
+  background:rgba(0,0,0,.55);color:#fff;font-size:10px;padding:3px 8px;
+  border-radius:5px;font-variant-numeric:tabular-nums;letter-spacing:.04em}
+
+.loader{position:absolute;inset:0;display:none;align-items:center;justify-content:center;
+  background:rgba(22,20,15,.6);backdrop-filter:blur(2px);z-index:5;
+  flex-direction:column;gap:14px;color:var(--text);font-size:13px}
+.loader.show{display:flex}
+.spin{width:34px;height:34px;border:3px solid var(--line);border-top-color:var(--accent);
+  border-radius:50%;animation:sp .7s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* ---- Auth / Login modals ---- */
+.modal-mask{position:fixed;inset:0;background:rgba(10,9,7,.7);backdrop-filter:blur(3px);
+  display:none;align-items:center;justify-content:center;z-index:50;padding:20px}
+.modal-mask.show{display:flex}
+.modal{width:100%;max-width:380px;background:var(--panel);border:1px solid var(--line);
+  border-radius:16px;padding:24px;box-shadow:0 30px 80px rgba(0,0,0,.6)}
+.modal h3{font-size:17px;font-weight:800;margin-bottom:6px;color:var(--text)}
+.modal p.sub{font-size:12.5px;color:var(--text-dim);line-height:1.6;margin-bottom:18px}
+.modal input[type=email]{width:100%;background:var(--panel-2);border:1px solid var(--line);
+  color:var(--text);border-radius:10px;padding:12px 13px;font-size:14px;font-family:var(--font);
+  margin-bottom:12px;outline:none}
+.modal input[type=email]:focus{border-color:var(--accent)}
+.modal .msg{font-size:12.5px;line-height:1.6;margin-top:12px;min-height:1em}
+.modal .msg.ok{color:var(--accent-2)}
+.modal .msg.err{color:#ff8f6b}
+.btn-google{
+  display:flex;align-items:center;justify-content:center;gap:10px;width:100%;
+  background:#fff;color:#3c3c3c;border:1px solid #ddd;border-radius:9px;
+  padding:11px;font-size:13px;font-weight:600;font-family:var(--font);
+  cursor:pointer;transition:.12s;margin-bottom:0;
+}
+.btn-google:hover{background:#f5f5f5;border-color:#bbb}
+.or-divider{display:flex;align-items:center;gap:10px;margin:14px 0;color:var(--text-dim);font-size:12px}
+.or-divider::before,.or-divider::after{content:'';flex:1;height:1px;background:var(--line)}
+.modal .acct-row{display:flex;align-items:center;justify-content:space-between;
+  background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:12px 13px;margin-bottom:14px}
+.modal .acct-row .em{font-size:13px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.modal .acct-row .badge2{font-size:11px;color:var(--accent-2);font-weight:700;flex:0 0 auto;margin-left:10px}
+.modal-close{position:absolute;top:14px;right:16px;background:none;border:none;color:var(--text-dim);
+  font-size:22px;cursor:pointer;line-height:1}
+.modal-wrap{position:relative}
+
+/* ---- Paywall price cards ---- */
+.pay-card{background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
+.pay-card.best{border-color:var(--accent)}
+.pc-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.pc-name{font-size:14px;font-weight:700;color:var(--text)}
+.pc-badge{font-size:10px;font-weight:700;color:#fff;background:var(--accent);padding:2px 9px;border-radius:10px}
+.pc-price{font-size:24px;font-weight:800;color:var(--text)}
+.pc-desc{font-size:11.5px;color:var(--text-dim);line-height:1.5;margin:4px 0 12px}
+.pc-btnwrap{min-height:38px}
+
+/* ---- Footer ---- */
+#site-footer{
+  position:fixed;bottom:10px;right:14px;z-index:5;
+  display:flex;align-items:center;gap:10px;
+  font-size:11px;color:var(--text-dim);opacity:.35;
+  transition:opacity .2s;pointer-events:none;
+}
+#site-footer:hover{opacity:.85}
+#site-footer a,#site-footer span{pointer-events:auto}
+#site-footer a{color:var(--text-dim);text-decoration:none}
+#site-footer a:hover{color:var(--text);text-decoration:underline}
+#site-footer .sep{opacity:.5}
+
+/* ---- Responsive ---- */
+@media (max-width:820px){
+  html,body{overflow:auto}
+  .app{flex-direction:column;height:auto;min-height:100vh}
+  .stage{flex:0 0 auto}
+  .preview{min-height:48vh;padding:16px}
+  .panel{width:100%;flex:0 0 auto;height:auto;border-left:none;border-top:1px solid var(--line)}
+  .scroll{flex:0 0 auto;overflow:visible}
+  .brand{padding:14px 18px 10px}
+  .getrow{padding:0 18px 14px}
+  #site-footer{display:none}
+}
+@media (max-width:768px){
+  html,body{overflow:hidden;height:100%}
+  .app{flex-direction:column;height:100vh;overflow:hidden}
+  .stage{
+    position:sticky;top:0;z-index:2;
+    flex:0 0 50vh;height:50vh;
+    overflow:hidden;
+  }
+  .preview{min-height:0;height:100%;padding:12px}
+  .panel{
+    flex:1;width:100%;
+    border-left:none;border-top:1px solid var(--line);
+    height:50vh;overflow:hidden;
+  }
+  .scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+}
