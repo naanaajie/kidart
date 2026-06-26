@@ -1,6 +1,7 @@
 {
   "rewrites": [
     { "source": "/shape", "destination": "/shape.html" },
-    { "source": "/haze",  "destination": "/haze.html"  }
+    { "source": "/haze",  "destination": "/haze.html"  },
+    { "source": "/dots",  "destination": "/dots.html"  }
   ]
 }
