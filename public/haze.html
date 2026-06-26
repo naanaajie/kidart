@@ -91,6 +91,7 @@
         <h2><span class="bar"></span><span data-i18n="haze_g_preset">Preset</span></h2>
         <div class="field">
           <select class="sel" id="sel-preset">
+            <option value="original">Original Tone</option>
             <option value="dreamy">Dreamy Blue</option>
             <option value="thermal">Thermal</option>
             <option value="negative">Negative</option>
@@ -330,6 +331,12 @@ document.getElementById('lang-toggle').addEventListener('click',()=>{
 
 // ===== Presets =====
 const PRESETS = {
+  original:{
+    label:'Original Tone', label_zh:'保留原图色调',
+    blurMix:0.00, grain:0.00, contrast:1.00, chroma:0.000,
+    smooth:1.0, levels:0, mapStr:0.0, aces:false,
+    stops:['#000000','#808080','#ffffff'],
+  },
   dreamy:{
     label:'Dreamy Blue', label_zh:'蓝调柔焦',
     blurMix:0.05, grain:0.12, contrast:1.20, chroma:0.008,
@@ -862,7 +869,7 @@ document.getElementById('btn-export-free').addEventListener('click',()=>doExport
 document.getElementById('btn-export-hd').addEventListener('click',()=>doExport('haze-hd.png'));
 
 // ===== Init =====
-applyPreset('dreamy');
+applyPreset('original');
 applyLang();
 
 })();
