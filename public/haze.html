@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Haze — stylejoy</title>
+<link rel="stylesheet" href="/styles.css">
+<style>
+  /* ---- haze.html 专有样式 ---- */
+
+  /* 铺满预览区（同 shape.html 模式） */
+  #canvas-wrap{max-width:none !important;max-height:none !important}
+  #gl-canvas{
+    width:100% !important;height:100% !important;
+    max-width:none !important;max-height:none !important;display:block;
+  }
+  .preview{padding:16px}
+
+  /* 上传按钮 */
+  #btn-upload{flex:1}
+
+  /* hint overlay */
+  .canvas-hint{
+    position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    color:var(--text-dim);font-size:14px;text-align:center;
+    pointer-events:none;line-height:1.8;transition:opacity .3s;
+  }
+  .canvas-hint.hidden{opacity:0}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ===== LEFT: canvas stage ===== -->
+  <main class="stage" id="stage">
+    <div class="leftbar">
+      <div class="brand">
+        <h1>
+          <img src="/stylejoy-logo.svg" class="brand-logo" alt="stylejoy">
+          <span class="title-text" data-i18n="haze_title">StyleJoy.art</span>
+          <button class="pill" id="lang-toggle">EN</button>
+          <button class="pill" id="account-btn">Sign in</button>
+        </h1>
+        <p data-i18n="haze_subtitle">Photo → dreamy glow</p>
+      </div>
+      <div class="getrow">
+        <button class="samplebtn fx-btn" id="btn-upload" data-i18n="haze_upload">Upload photo</button>
+        <input type="file" id="file-input" accept="image/*" hidden>
+      </div>
+    </div>
+
+    <div class="preview" id="preview">
+      <div class="canvas-wrap" id="canvas-wrap">
+        <canvas id="gl-canvas"></canvas>
+        <div class="canvas-hint" id="canvas-hint">
+          <b data-i18n="haze_hint_b">Upload a photo</b><br>
+          <span data-i18n="haze_hint_s">JPG / PNG supported</span>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ===== RIGHT: control panel ===== -->
+  <aside class="panel">
+    <div class="scroll">
+
+      <!-- Blur -->
+      <div class="group">
+        <h2><span class="bar"></span><span data-i18n="haze_g_blur">Blur</span></h2>
+        <div class="field">
+          <div class="row">
+            <label data-i18n="haze_l_radius">Radius</label>
+            <span class="val" id="v-blur">8</span>
+          </div>
+          <input type="range" id="sl-blur" min="0" max="40" value="8">
+        </div>
+      </div>
+
+      <!-- Bloom -->
+      <div class="group">
+        <h2><span class="bar"></span><span data-i18n="haze_g_bloom">Bloom</span></h2>
+        <div class="field">
+          <div class="row">
+            <label data-i18n="haze_l_strength">Strength</label>
+            <span class="val" id="v-bloom">0.60</span>
+          </div>
+          <input type="range" id="sl-bloom" min="0" max="100" value="60">
+        </div>
+        <div class="field">
+          <div class="row">
+            <label data-i18n="haze_l_threshold">Threshold</label>
+            <span class="val" id="v-thresh">0.50</span>
+          </div>
+          <input type="range" id="sl-thresh" min="0" max="100" value="50">
+        </div>
+      </div>
+
+      <!-- Tone -->
+      <div class="group">
+        <h2><span class="bar"></span><span data-i18n="haze_g_tone">Tone</span></h2>
+        <div class="field">
+          <div class="row">
+            <label data-i18n="haze_l_contrast">Contrast</label>
+            <span class="val" id="v-contrast">1.00</span>
+          </div>
+          <input type="range" id="sl-contrast" min="50" max="200" value="100">
+        </div>
+        <div class="field">
+          <div class="row">
+            <label data-i18n="haze_l_sat">Saturation</label>
+            <span class="val" id="v-sat">1.00</span>
+          </div>
+          <input type="range" id="sl-sat" min="0" max="200" value="100">
+        </div>
+      </div>
+
+      <!-- Export -->
+      <div class="group">
+        <h2><span class="bar"></span><span data-i18n="haze_g_export">Export</span></h2>
+        <button class="btn btn-ghost" id="btn-export-free" style="margin-bottom:8px" data-i18n="haze_export_free">Export free</button>
+        <button class="btn btn-primary" id="btn-export-hd" data-i18n="haze_export_hd">Export HD</button>
+      </div>
+
+    </div>
+  </aside>
+</div>
+
+<footer id="site-footer">
+  <a href="/privacy.html" target="_blank" rel="noopener">Privacy</a>
+  <span class="sep">·</span>
+  <a href="/terms.html" target="_blank" rel="noopener">Terms</a>
+  <span class="sep">·</span>
+  <span>© 2026 stylejoy</span>
+</footer>
+
+<script src="/config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/auth.js"></script>
+<script>
+(function(){
+'use strict';
+
+// ===== i18n =====
+const HAZE_I18N = {
+  zh:{
+    haze_title:'StyleJoy.art', haze_subtitle:'照片 → 梦幻柔光',
+    haze_upload:'上传照片',
+    haze_hint_b:'上传一张照片', haze_hint_s:'支持 JPG / PNG',
+    haze_g_blur:'模糊', haze_l_radius:'半径',
+    haze_g_bloom:'辉光', haze_l_strength:'强度', haze_l_threshold:'阈值',
+    haze_g_tone:'色调', haze_l_contrast:'对比度', haze_l_sat:'饱和度',
+    haze_g_export:'导出', haze_export_free:'免费导出', haze_export_hd:'高清导出',
+  },
+  en:{
+    haze_title:'StyleJoy.art', haze_subtitle:'Photo → dreamy glow',
+    haze_upload:'Upload photo',
+    haze_hint_b:'Upload a photo', haze_hint_s:'JPG / PNG supported',
+    haze_g_blur:'Blur', haze_l_radius:'Radius',
+    haze_g_bloom:'Bloom', haze_l_strength:'Strength', haze_l_threshold:'Threshold',
+    haze_g_tone:'Tone', haze_l_contrast:'Contrast', haze_l_sat:'Saturation',
+    haze_g_export:'Export', haze_export_free:'Export free', haze_export_hd:'Export HD',
+  },
+};
+
+let lang = localStorage.getItem('ri_lang') || 'en';
+function applyLang(){
+  document.querySelectorAll('[data-i18n]').forEach(el=>{
+    const k = el.dataset.i18n;
+    if(HAZE_I18N[lang]?.[k]) el.textContent = HAZE_I18N[lang][k];
+  });
+  document.getElementById('lang-toggle').textContent = lang==='en'?'中':'EN';
+}
+applyLang();
+document.getElementById('lang-toggle').addEventListener('click',()=>{
+  lang = lang==='en'?'zh':'en';
+  localStorage.setItem('ri_lang', lang);
+  applyLang();
+});
+
+// ===== WebGL setup =====
+const canvas = document.getElementById('gl-canvas');
+const gl = canvas.getContext('webgl', {
+  preserveDrawingBuffer: true,  // required for toBlob()
+  antialias: false,
+});
+if(!gl){ alert('WebGL not supported'); }
+
+const wrap    = document.getElementById('canvas-wrap');
+const preview = document.getElementById('preview');
+const hint    = document.getElementById('canvas-hint');
+
+// Image state
+let texW = 800, texH = 800;
+let srcTex = null, hasImage = false;
+
+// FBO state
+let fboH = null, texH_buf = null;
+let fboV = null, texV_buf = null;
+let fboB1 = null, texB1 = null;  // bloom blur H
+let fboB2 = null, texB2 = null;  // bloom blur V (final bloom)
+
+// ===== Shader sources =====
+const VS = `
+attribute vec2 a_pos;
+varying vec2 v_uv;
+void main(){
+  v_uv = a_pos * 0.5 + 0.5;
+  gl_Position = vec4(a_pos, 0.0, 1.0);
+}`;
+
+// 9-tap separable Gaussian
+const FS_BLUR = `
+precision mediump float;
+uniform sampler2D u_tex;
+uniform vec2 u_dir;      // (1/w, 0) or (0, 1/h)
+uniform float u_radius;  // in pixels
+varying vec2 v_uv;
+void main(){
+  float w[9];
+  w[0]=0.0625; w[1]=0.1250; w[2]=0.1875; w[3]=0.2500; w[4]=0.3125;
+  w[5]=0.2500; w[6]=0.1875; w[7]=0.1250; w[8]=0.0625;
+  float total = 1.9375; // sum of above
+  vec4 col = vec4(0.0);
+  for(int i=0;i<9;i++){
+    float offset = (float(i) - 4.0) * u_radius;
+    col += texture2D(u_tex, v_uv + u_dir * offset) * w[i];
+  }
+  gl_FragColor = col / total;
+}`;
+
+// Bloom extract: keep bright regions, zero out dark
+const FS_BRIGHT = `
+precision mediump float;
+uniform sampler2D u_tex;
+uniform float u_threshold;
+varying vec2 v_uv;
+void main(){
+  vec4 c = texture2D(u_tex, v_uv);
+  float luma = dot(c.rgb, vec3(0.2126, 0.7152, 0.0722));
+  float mask = smoothstep(u_threshold - 0.1, u_threshold + 0.1, luma);
+  gl_FragColor = vec4(c.rgb * mask, c.a);
+}`;
+
+// Final composite: original + haze blur + bloom, with contrast/sat
+const FS_FINAL = `
+precision mediump float;
+uniform sampler2D u_src;
+uniform sampler2D u_blurred;
+uniform sampler2D u_bloom;
+uniform float u_haze;       // blur blend amount (= blurRadius/40.0)
+uniform float u_bloomStr;
+uniform float u_contrast;
+uniform float u_sat;
+varying vec2 v_uv;
+void main(){
+  vec4 base    = texture2D(u_src,     v_uv);
+  vec4 blurred = texture2D(u_blurred, v_uv);
+  vec4 bloom   = texture2D(u_bloom,   v_uv);
+
+  // Haze blend: mix original toward blurred
+  vec3 col = mix(base.rgb, blurred.rgb, u_haze);
+
+  // Add bloom
+  col += bloom.rgb * u_bloomStr;
+
+  // Contrast
+  col = (col - 0.5) * u_contrast + 0.5;
+
+  // Saturation
+  float luma = dot(col, vec3(0.2126, 0.7152, 0.0722));
+  col = mix(vec3(luma), col, u_sat);
+
+  gl_FragColor = vec4(clamp(col, 0.0, 1.0), base.a);
+}`;
+
+// ===== Compile helpers =====
+function compileShader(type, src){
+  const sh = gl.createShader(type);
+  gl.shaderSource(sh, src);
+  gl.compileShader(sh);
+  if(!gl.getShaderParameter(sh, gl.COMPILE_STATUS))
+    throw new Error('Shader: ' + gl.getShaderInfoLog(sh));
+  return sh;
+}
+function makeProgram(vs, fs){
+  const prog = gl.createProgram();
+  gl.attachShader(prog, compileShader(gl.VERTEX_SHADER, vs));
+  gl.attachShader(prog, compileShader(gl.FRAGMENT_SHADER, fs));
+  gl.linkProgram(prog);
+  if(!gl.getProgramParameter(prog, gl.LINK_STATUS))
+    throw new Error('Link: ' + gl.getProgramInfoLog(prog));
+  return prog;
+}
+
+const progBlur   = makeProgram(VS, FS_BLUR);
+const progBright = makeProgram(VS, FS_BRIGHT);
+const progFinal  = makeProgram(VS, FS_FINAL);
+
+// Full-screen quad buffer
+const quad = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, quad);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+  -1,-1,  1,-1,  -1,1,  1,1
+]), gl.STATIC_DRAW);
+
+function bindQuad(prog){
+  gl.bindBuffer(gl.ARRAY_BUFFER, quad);
+  const loc = gl.getAttribLocation(prog, 'a_pos');
+  gl.enableVertexAttribArray(loc);
+  gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+}
+
+// ===== FBO helpers =====
+function makeFBO(w, h){
+  const tex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  const fbo = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  return {fbo, tex};
+}
+
+function resizeFBOs(w, h){
+  // Destroy old
+  [fboH, fboV, fboB1, fboB2].forEach(f=>{ if(f){ gl.deleteFramebuffer(f.fbo); gl.deleteTexture(f.tex); }});
+  fboH  = makeFBO(w, h); texH_buf = fboH.tex;
+  fboV  = makeFBO(w, h); texV_buf = fboV.tex;
+  fboB1 = makeFBO(w, h); texB1 = fboB1.tex;
+  fboB2 = makeFBO(w, h); texB2 = fboB2.tex;
+}
+
+// ===== Draw helpers =====
+function drawToFBO(fbo, prog, uniforms){
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+  gl.viewport(0, 0, texW, texH);
+  gl.useProgram(prog);
+  bindQuad(prog);
+  uniforms(prog);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+}
+
+function bindTex(prog, name, unit, tex){
+  gl.activeTexture(gl.TEXTURE0 + unit);
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.uniform1i(gl.getUniformLocation(prog, name), unit);
+}
+
+// ===== Main render =====
+let rafPending = false;
+function scheduleRender(){
+  if(!hasImage) return;
+  if(rafPending) return;
+  rafPending = true;
+  requestAnimationFrame(doRender);
+}
+
+function doRender(){
+  rafPending = false;
+  if(!hasImage) return;
+
+  const blurR    = parseFloat(document.getElementById('sl-blur').value);
+  const bloomStr = parseFloat(document.getElementById('sl-bloom').value) / 100;
+  const thresh   = parseFloat(document.getElementById('sl-thresh').value) / 100;
+  const contrast = parseFloat(document.getElementById('sl-contrast').value) / 100;
+  const sat      = parseFloat(document.getElementById('sl-sat').value) / 100;
+
+  const rNormX = blurR / texW;
+  const rNormY = blurR / texH;
+
+  // 1. Blur H: srcTex → fboH
+  drawToFBO(fboH.fbo, progBlur, prog=>{
+    bindTex(prog, 'u_tex', 0, srcTex);
+    gl.uniform2f(gl.getUniformLocation(prog, 'u_dir'), rNormX, 0.0);
+    gl.uniform1f(gl.getUniformLocation(prog, 'u_radius'), 1.0);
+  });
+
+  // 2. Blur V: fboH.tex → fboV
+  drawToFBO(fboV.fbo, progBlur, prog=>{
+    bindTex(prog, 'u_tex', 0, fboH.tex);
+    gl.uniform2f(gl.getUniformLocation(prog, 'u_dir'), 0.0, rNormY);
+    gl.uniform1f(gl.getUniformLocation(prog, 'u_radius'), 1.0);
+  });
+
+  // 3. Bloom extract: fboV.tex → fboB1 (bright regions only)
+  drawToFBO(fboB1.fbo, progBright, prog=>{
+    bindTex(prog, 'u_tex', 0, fboV.tex);
+    gl.uniform1f(gl.getUniformLocation(prog, 'u_threshold'), thresh);
+  });
+
+  // 4. Bloom blur H: fboB1 → fboB2
+  drawToFBO(fboB2.fbo, progBlur, prog=>{
+    bindTex(prog, 'u_tex', 0, fboB1.tex);
+    gl.uniform2f(gl.getUniformLocation(prog, 'u_dir'), 1.0/texW, 0.0);
+    gl.uniform1f(gl.getUniformLocation(prog, 'u_radius'), 1.0);
+  });
+
+  // 5. Bloom blur V: fboB2 → fboB1 (reuse)
+  drawToFBO(fboB1.fbo, progBlur, prog=>{
+    bindTex(prog, 'u_tex', 0, fboB2.tex);
+    gl.uniform2f(gl.getUniformLocation(prog, 'u_dir'), 0.0, 1.0/texH);
+    gl.uniform1f(gl.getUniformLocation(prog, 'u_radius'), 1.0);
+  });
+
+  // 6. Final composite → screen
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.viewport(0, 0, texW, texH);
+  gl.useProgram(progFinal);
+  bindQuad(progFinal);
+  bindTex(progFinal, 'u_src',     0, srcTex);
+  bindTex(progFinal, 'u_blurred', 1, fboV.tex);
+  bindTex(progFinal, 'u_bloom',   2, fboB1.tex);
+  gl.uniform1f(gl.getUniformLocation(progFinal, 'u_haze'),     Math.min(blurR / 40.0, 1.0));
+  gl.uniform1f(gl.getUniformLocation(progFinal, 'u_bloomStr'), bloomStr);
+  gl.uniform1f(gl.getUniformLocation(progFinal, 'u_contrast'), contrast);
+  gl.uniform1f(gl.getUniformLocation(progFinal, 'u_sat'),      sat);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+}
+
+// ===== Upload image =====
+function loadImage(file){
+  const img = new Image();
+  img.onload = ()=>{
+    texW = img.naturalWidth;
+    texH = img.naturalHeight;
+    canvas.width  = texW;
+    canvas.height = texH;
+
+    // Create or update srcTex
+    if(srcTex) gl.deleteTexture(srcTex);
+    srcTex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, srcTex);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+    resizeFBOs(texW, texH);
+    hasImage = true;
+    hint.classList.add('hidden');
+    fitCanvas();
+    scheduleRender();
+    URL.revokeObjectURL(img.src);
+  };
+  img.src = URL.createObjectURL(file);
+}
+
+document.getElementById('btn-upload').addEventListener('click',()=>{
+  document.getElementById('file-input').click();
+});
+document.getElementById('file-input').addEventListener('change', e=>{
+  if(e.target.files[0]) loadImage(e.target.files[0]);
+  e.target.value = '';
+});
+
+// Drag & drop on preview
+canvas.addEventListener('dragover', e=>e.preventDefault());
+canvas.addEventListener('drop', e=>{
+  e.preventDefault();
+  const f = e.dataTransfer.files[0];
+  if(f && f.type.startsWith('image/')) loadImage(f);
+});
+
+// ===== fitCanvas (same pattern as shape.html) =====
+function fitCanvas(){
+  const pad = 16;
+  const maxW = preview.clientWidth  - pad * 2;
+  const maxH = preview.clientHeight - pad * 2;
+  if(maxW <= 0 || maxH <= 0) return;
+  const scale = Math.min(maxW / texW, maxH / texH);
+  wrap.style.width  = Math.round(texW * scale) + 'px';
+  wrap.style.height = Math.round(texH * scale) + 'px';
+}
+window.addEventListener('resize', fitCanvas);
+fitCanvas();
+
+// ===== Sliders =====
+function wireSlider(id, valId, fmt){
+  const sl = document.getElementById(id);
+  const vl = document.getElementById(valId);
+  sl.addEventListener('input', ()=>{
+    vl.textContent = fmt(parseFloat(sl.value));
+    scheduleRender();
+  });
+}
+wireSlider('sl-blur',     'v-blur',     v => v.toFixed(0));
+wireSlider('sl-bloom',    'v-bloom',    v => (v/100).toFixed(2));
+wireSlider('sl-thresh',   'v-thresh',   v => (v/100).toFixed(2));
+wireSlider('sl-contrast', 'v-contrast', v => (v/100).toFixed(2));
+wireSlider('sl-sat',      'v-sat',      v => (v/100).toFixed(2));
+
+// ===== Export =====
+function doExport(filename){
+  if(!hasImage){ return; }
+  doRender(); // ensure latest frame
+  canvas.toBlob(blob=>{
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 10000);
+  }, 'image/png');
+}
+document.getElementById('btn-export-free').addEventListener('click',()=>doExport('haze-free.png'));
+document.getElementById('btn-export-hd').addEventListener('click',()=>doExport('haze-hd.png'));
+
+})();
+</script>
+</body>
+</html>
