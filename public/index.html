@@ -188,6 +188,23 @@
   .price-card.best .btn-price:hover{background:#f06f48}
   @media(max-width:580px){.pricing-grid{flex-direction:column}}
 
+  /* ---- Tools ---- */
+  .tools-grid{display:flex;gap:16px;flex-wrap:wrap}
+  .tool-card{
+    flex:1;min-width:240px;
+    background:var(--panel-2);border:1px solid var(--line);
+    border-radius:14px;padding:24px 22px;
+    display:flex;flex-direction:column;gap:12px;
+    text-decoration:none;color:var(--text);
+    transition:.15s;
+  }
+  .tool-card:hover{border-color:var(--accent);transform:translateY(-2px)}
+  .tool-icon{font-size:28px;line-height:1}
+  .tool-name{font-size:16px;font-weight:800}
+  .tool-desc{font-size:13px;color:var(--text-dim);line-height:1.5}
+  .tool-tag{display:inline-block;font-size:11px;font-weight:700;padding:3px 8px;border-radius:4px;background:rgba(232,98,58,.15);color:var(--accent)}
+  @media(max-width:580px){.tools-grid{flex-direction:column}}
+
   /* ---- Final CTA ---- */
   .final-cta{
     text-align:center;
@@ -387,6 +404,29 @@
         <a class="btn-price" href="/app.html">Get lifetime access →</a>
       </div>
 
+    </div>
+  </div>
+</section>
+
+<!-- ===== TOOLS ===== -->
+<section id="tools">
+  <div class="container">
+    <div class="section-label">Tools</div>
+    <h2 class="section-title">Two ways to make art</h2>
+    <p class="section-sub">Both free to try. Unlock HD export when you're ready to print.</p>
+    <div class="tools-grid">
+      <a class="tool-card" href="/app.html">
+        <div class="tool-icon">🌸</div>
+        <div class="tool-name">Riso Print Maker</div>
+        <div class="tool-desc">Upload a photo, pick a color palette, and get a gallery-ready Riso-style art print in seconds.</div>
+        <div class="tool-tag">Free to try</div>
+      </a>
+      <a class="tool-card" href="/shape">
+        <div class="tool-icon">✦</div>
+        <div class="tool-name">Shape Text</div>
+        <div class="tool-desc">Draw any shape and fill it with your words — poetry, lyrics, quotes — in a beautiful typographic art piece.</div>
+        <div class="tool-tag">Free to try</div>
+      </a>
     </div>
   </div>
 </section>

@@ -1,0 +1,5 @@
+{
+  "rewrites": [
+    { "source": "/shape", "destination": "/shape.html" }
+  ]
+}
