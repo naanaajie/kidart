@@ -7,25 +7,47 @@
 <link rel="stylesheet" href="/styles.css">
 <style>
   /* ---- haze.html 专有样式 ---- */
-
-  /* 铺满预览区（同 shape.html 模式） */
   #canvas-wrap{max-width:none !important;max-height:none !important}
   #gl-canvas{
     width:100% !important;height:100% !important;
     max-width:none !important;max-height:none !important;display:block;
   }
   .preview{padding:16px}
-
-  /* 上传按钮 */
   #btn-upload{flex:1}
-
-  /* hint overlay */
   .canvas-hint{
     position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
     color:var(--text-dim);font-size:14px;text-align:center;
     pointer-events:none;line-height:1.8;transition:opacity .3s;
   }
   .canvas-hint.hidden{opacity:0}
+
+  /* color stop row */
+  .stop-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .stop-row label{font-size:12px;color:var(--text-dim);min-width:40px}
+  .colorbtn-sm{width:36px;height:28px;border-radius:5px;border:1px solid var(--line);
+    cursor:pointer;padding:0;background:none}
+
+  /* select */
+  .sel{
+    width:100%;background:var(--panel-2);border:1px solid var(--line);
+    border-radius:var(--r);color:var(--text);font-size:12.5px;
+    font-family:var(--font);padding:7px 10px;outline:none;cursor:pointer;
+  }
+  .sel:focus{border-color:var(--accent)}
+
+  /* ACES toggle row */
+  .check-row{display:flex;align-items:center;justify-content:space-between;
+    padding:4px 0;cursor:pointer}
+  .check-row input[type=checkbox]{width:15px;height:15px;accent-color:var(--accent);cursor:pointer}
+
+  /* gradient preview bar */
+  #grad-preview{
+    height:18px;border-radius:5px;margin:8px 0;border:1px solid var(--line);
+    transition:background .2s;
+  }
+
+  /* dim placeholder sliders for unimplemented params */
+  .field.placeholder{opacity:0.45}
 </style>
 </head>
 <body>
@@ -64,59 +86,169 @@
   <aside class="panel">
     <div class="scroll">
 
-      <!-- Blur -->
+      <!-- 1. Preset -->
       <div class="group">
-        <h2><span class="bar"></span><span data-i18n="haze_g_blur">Blur</span></h2>
+        <h2><span class="bar"></span><span data-i18n="haze_g_preset">Preset</span></h2>
         <div class="field">
-          <div class="row">
-            <label data-i18n="haze_l_radius">Radius</label>
-            <span class="val" id="v-blur">8</span>
-          </div>
-          <input type="range" id="sl-blur" min="0" max="40" value="8">
+          <select class="sel" id="sel-preset">
+            <option value="dreamy">Dreamy Blue</option>
+            <option value="thermal">Thermal</option>
+            <option value="negative">Negative</option>
+            <option value="warm_vintage">Warm Vintage</option>
+            <option value="ghost_green">Ghost Green</option>
+            <option value="custom">Custom</option>
+          </select>
         </div>
       </div>
 
-      <!-- Bloom -->
+      <!-- 2. Gradient Map -->
       <div class="group">
-        <h2><span class="bar"></span><span data-i18n="haze_g_bloom">Bloom</span></h2>
+        <h2><span class="bar"></span><span data-i18n="haze_g_gradient">Gradient Map</span></h2>
         <div class="field">
           <div class="row">
-            <label data-i18n="haze_l_strength">Strength</label>
-            <span class="val" id="v-bloom">0.60</span>
+            <label data-i18n="haze_l_mapstr">Map Strength</label>
+            <span class="val" id="v-mapstr">1.00</span>
           </div>
-          <input type="range" id="sl-bloom" min="0" max="100" value="60">
+          <input type="range" id="sl-mapstr" min="0" max="100" value="100">
         </div>
-        <div class="field">
-          <div class="row">
-            <label data-i18n="haze_l_threshold">Threshold</label>
-            <span class="val" id="v-thresh">0.50</span>
+        <div id="grad-preview"></div>
+        <!-- Custom stop editor (only shown for "custom" preset) -->
+        <div id="gradient-edit" style="display:none">
+          <div class="field" style="margin-bottom:6px">
+            <div class="row">
+              <label data-i18n="haze_l_numstops">Color stops</label>
+              <select class="sel" id="sel-numstops" style="width:70px;padding:4px 6px">
+                <option value="2">2</option>
+                <option value="3" selected>3</option>
+                <option value="4">4</option>
+              </select>
+            </div>
           </div>
-          <input type="range" id="sl-thresh" min="0" max="100" value="50">
+          <div class="stop-row">
+            <label data-i18n="haze_stop_dark">Dark</label>
+            <input type="color" class="colorbtn-sm" id="stop0" value="#1a0a3f">
+          </div>
+          <div class="stop-row" id="stop-row1">
+            <label data-i18n="haze_stop_mid">Mid</label>
+            <input type="color" class="colorbtn-sm" id="stop1" value="#3d1a8a">
+          </div>
+          <div class="stop-row" id="stop-row2">
+            <label data-i18n="haze_stop_mid2">Mid 2</label>
+            <input type="color" class="colorbtn-sm" id="stop2" value="#4aff7f">
+          </div>
+          <div class="stop-row" id="stop-row3">
+            <label data-i18n="haze_stop_light">Light</label>
+            <input type="color" class="colorbtn-sm" id="stop3" value="#4a0a0a">
+          </div>
+          <button class="btn btn-ghost" id="btn-random" style="margin-top:4px" data-i18n="haze_btn_random">Random gradient</button>
         </div>
       </div>
 
-      <!-- Tone -->
+      <!-- 3. Levels -->
       <div class="group">
-        <h2><span class="bar"></span><span data-i18n="haze_g_tone">Tone</span></h2>
+        <h2><span class="bar"></span><span data-i18n="haze_g_levels">Levels</span></h2>
+        <div class="field">
+          <div class="row">
+            <label data-i18n="haze_l_levels">Quantize</label>
+            <span class="val" id="v-levels">Off</span>
+          </div>
+          <input type="range" id="sl-levels" min="0" max="12" value="0" step="1">
+        </div>
+        <div class="field">
+          <div class="row">
+            <label data-i18n="haze_l_smooth">Smooth</label>
+            <span class="val" id="v-smooth">0.50</span>
+          </div>
+          <input type="range" id="sl-smooth" min="0" max="100" value="50">
+        </div>
+      </div>
+
+      <!-- 4. Light & Color -->
+      <div class="group">
+        <h2><span class="bar"></span><span data-i18n="haze_g_light">Light &amp; Color</span></h2>
+        <div class="field">
+          <div class="row">
+            <label data-i18n="haze_l_blur">Soften</label>
+            <span class="val" id="v-blur">0.05</span>
+          </div>
+          <input type="range" id="sl-blur" min="0" max="100" value="5">
+        </div>
         <div class="field">
           <div class="row">
             <label data-i18n="haze_l_contrast">Contrast</label>
-            <span class="val" id="v-contrast">1.00</span>
+            <span class="val" id="v-contrast">1.20</span>
           </div>
-          <input type="range" id="sl-contrast" min="50" max="200" value="100">
+          <input type="range" id="sl-contrast" min="50" max="200" value="120">
+        </div>
+        <label class="check-row">
+          <span data-i18n="haze_aces">ACES Tonemap</span>
+          <input type="checkbox" id="ck-aces" checked>
+        </label>
+      </div>
+
+      <!-- 5. Film -->
+      <div class="group">
+        <h2><span class="bar"></span><span data-i18n="haze_g_film">Film</span></h2>
+        <div class="field">
+          <div class="row">
+            <label data-i18n="haze_l_grain">Grain</label>
+            <span class="val" id="v-grain">0.12</span>
+          </div>
+          <input type="range" id="sl-grain" min="0" max="40" value="12">
         </div>
         <div class="field">
           <div class="row">
-            <label data-i18n="haze_l_sat">Saturation</label>
-            <span class="val" id="v-sat">1.00</span>
+            <label data-i18n="haze_l_chroma">Chromatic</label>
+            <span class="val" id="v-chroma">0.008</span>
           </div>
-          <input type="range" id="sl-sat" min="0" max="200" value="100">
+          <input type="range" id="sl-chroma" min="0" max="50" value="8">
+        </div>
+        <div class="field placeholder">
+          <div class="row">
+            <label data-i18n="haze_l_halation">Halation</label>
+            <span class="val" id="v-halation">0</span>
+          </div>
+          <input type="range" id="sl-halation" min="0" max="100" value="0" disabled>
         </div>
       </div>
 
-      <!-- Export -->
+      <!-- 6. Advanced (placeholder sliders) -->
+      <div class="group">
+        <h2><span class="bar"></span><span data-i18n="haze_g_advanced">Advanced</span></h2>
+        <div class="field placeholder">
+          <div class="row">
+            <label data-i18n="haze_l_bloom">Bloom</label>
+            <span class="val" id="v-bloom">0</span>
+          </div>
+          <input type="range" id="sl-bloom" min="0" max="100" value="0" disabled>
+        </div>
+        <div class="field placeholder">
+          <div class="row">
+            <label data-i18n="haze_l_angle">Angle</label>
+            <span class="val" id="v-angle">0°</span>
+          </div>
+          <input type="range" id="sl-angle" min="0" max="360" value="0" disabled>
+        </div>
+        <div class="field placeholder">
+          <div class="row">
+            <label data-i18n="haze_l_warp">Warp</label>
+            <span class="val" id="v-warp">0</span>
+          </div>
+          <input type="range" id="sl-warp" min="0" max="100" value="0" disabled>
+        </div>
+        <div class="field placeholder">
+          <div class="row">
+            <label data-i18n="haze_l_leaks">Light Leaks</label>
+            <span class="val" id="v-leaks">0</span>
+          </div>
+          <input type="range" id="sl-leaks" min="0" max="100" value="0" disabled>
+        </div>
+      </div>
+
+      <!-- 7. Export -->
       <div class="group">
         <h2><span class="bar"></span><span data-i18n="haze_g_export">Export</span></h2>
+        <button class="btn btn-ghost" id="btn-reset" style="margin-bottom:8px" data-i18n="haze_btn_reset">Reset to defaults</button>
         <button class="btn btn-ghost" id="btn-export-free" style="margin-bottom:8px" data-i18n="haze_export_free">Export free</button>
         <button class="btn btn-primary" id="btn-export-hd" data-i18n="haze_export_hd">Export HD</button>
       </div>
@@ -146,19 +278,33 @@ const HAZE_I18N = {
     haze_title:'StyleJoy.art', haze_subtitle:'照片 → 梦幻柔光',
     haze_upload:'上传照片',
     haze_hint_b:'上传一张照片', haze_hint_s:'支持 JPG / PNG',
-    haze_g_blur:'模糊', haze_l_radius:'半径',
-    haze_g_bloom:'辉光', haze_l_strength:'强度', haze_l_threshold:'阈值',
-    haze_g_tone:'色调', haze_l_contrast:'对比度', haze_l_sat:'饱和度',
-    haze_g_export:'导出', haze_export_free:'免费导出', haze_export_hd:'高清导出',
+    haze_g_preset:'预设',
+    haze_g_gradient:'渐变映射', haze_l_mapstr:'映射强度', haze_l_numstops:'色标数量',
+    haze_stop_dark:'暗部', haze_stop_mid:'中调', haze_stop_mid2:'中调2', haze_stop_light:'亮部',
+    haze_btn_random:'随机渐变',
+    haze_g_levels:'色阶量化', haze_l_levels:'色阶数', haze_l_smooth:'羽化',
+    haze_g_light:'光效与色彩', haze_l_blur:'柔化', haze_l_contrast:'对比度',
+    haze_aces:'ACES 色调映射',
+    haze_g_film:'胶片', haze_l_grain:'颗粒', haze_l_chroma:'色差', haze_l_halation:'光晕扩散',
+    haze_g_advanced:'高级（敬请期待）', haze_l_bloom:'辉光', haze_l_angle:'角度',
+    haze_l_warp:'变形', haze_l_leaks:'漏光',
+    haze_g_export:'导出', haze_btn_reset:'恢复默认', haze_export_free:'免费导出', haze_export_hd:'高清导出',
   },
   en:{
     haze_title:'StyleJoy.art', haze_subtitle:'Photo → dreamy glow',
     haze_upload:'Upload photo',
     haze_hint_b:'Upload a photo', haze_hint_s:'JPG / PNG supported',
-    haze_g_blur:'Blur', haze_l_radius:'Radius',
-    haze_g_bloom:'Bloom', haze_l_strength:'Strength', haze_l_threshold:'Threshold',
-    haze_g_tone:'Tone', haze_l_contrast:'Contrast', haze_l_sat:'Saturation',
-    haze_g_export:'Export', haze_export_free:'Export free', haze_export_hd:'Export HD',
+    haze_g_preset:'Preset',
+    haze_g_gradient:'Gradient Map', haze_l_mapstr:'Map Strength', haze_l_numstops:'Color stops',
+    haze_stop_dark:'Dark', haze_stop_mid:'Mid', haze_stop_mid2:'Mid 2', haze_stop_light:'Light',
+    haze_btn_random:'Random gradient',
+    haze_g_levels:'Levels', haze_l_levels:'Quantize', haze_l_smooth:'Smooth',
+    haze_g_light:'Light & Color', haze_l_blur:'Soften', haze_l_contrast:'Contrast',
+    haze_aces:'ACES Tonemap',
+    haze_g_film:'Film', haze_l_grain:'Grain', haze_l_chroma:'Chromatic', haze_l_halation:'Halation',
+    haze_g_advanced:'Advanced (coming soon)', haze_l_bloom:'Bloom', haze_l_angle:'Angle',
+    haze_l_warp:'Warp', haze_l_leaks:'Light Leaks',
+    haze_g_export:'Export', haze_btn_reset:'Reset to defaults', haze_export_free:'Export free', haze_export_hd:'Export HD',
   },
 };
 
@@ -169,35 +315,71 @@ function applyLang(){
     if(HAZE_I18N[lang]?.[k]) el.textContent = HAZE_I18N[lang][k];
   });
   document.getElementById('lang-toggle').textContent = lang==='en'?'中':'EN';
+  // Update preset labels in select
+  const sel = document.getElementById('sel-preset');
+  Array.from(sel.options).forEach(opt=>{
+    const p = PRESETS[opt.value];
+    if(p) opt.textContent = lang==='zh' ? p.label_zh : p.label;
+  });
 }
-applyLang();
 document.getElementById('lang-toggle').addEventListener('click',()=>{
   lang = lang==='en'?'zh':'en';
   localStorage.setItem('ri_lang', lang);
   applyLang();
 });
 
+// ===== Presets =====
+const PRESETS = {
+  dreamy:{
+    label:'Dreamy Blue', label_zh:'蓝调柔焦',
+    blurMix:0.05, grain:0.12, contrast:1.20, chroma:0.008,
+    smooth:0.50, levels:0, mapStr:1.0, aces:true,
+    stops:['#1a2a55','#6f9fd8','#f4f8ff'],
+  },
+  thermal:{
+    label:'Thermal', label_zh:'热成像',
+    blurMix:0.02, grain:0.08, contrast:1.10, chroma:0.012,
+    smooth:0.40, levels:5, mapStr:1.0, aces:true,
+    stops:['#0a0a30','#7f1d7f','#ff6600','#ffffaa'],
+  },
+  negative:{
+    label:'Negative', label_zh:'负片',
+    blurMix:0.01, grain:0.15, contrast:0.90, chroma:0.020,
+    smooth:0.20, levels:0, mapStr:1.0, aces:false,
+    stops:['#f5f0e8','#7a8c6e','#1a1a2e'],
+  },
+  warm_vintage:{
+    label:'Warm Vintage', label_zh:'暖调复古',
+    blurMix:0.04, grain:0.20, contrast:1.15, chroma:0.005,
+    smooth:0.60, levels:0, mapStr:0.75, aces:true,
+    stops:['#1c1008','#8b4513','#d4a055','#fff8e7'],
+  },
+  ghost_green:{
+    label:'Ghost Green', label_zh:'幽灵绿',
+    blurMix:0.03, grain:0.18, contrast:1.30, chroma:0.025,
+    smooth:0.30, levels:3, mapStr:1.0, aces:true,
+    stops:['#000a00','#003300','#00cc44','#ccffcc'],
+  },
+  custom:{
+    label:'Custom', label_zh:'完全自定义',
+    blurMix:0.05, grain:0.28, contrast:1.20, chroma:0.040,
+    smooth:1.0, levels:7, mapStr:1.0, aces:true,
+    stops:['#1a0a3f','#3d1a8a','#4aff7f','#4a0a0a'],
+  },
+};
+
 // ===== WebGL setup =====
 const canvas = document.getElementById('gl-canvas');
-const gl = canvas.getContext('webgl', {
-  preserveDrawingBuffer: true,  // required for toBlob()
-  antialias: false,
-});
+const gl = canvas.getContext('webgl', {preserveDrawingBuffer:true, antialias:false});
 if(!gl){ alert('WebGL not supported'); }
 
 const wrap    = document.getElementById('canvas-wrap');
 const preview = document.getElementById('preview');
 const hint    = document.getElementById('canvas-hint');
 
-// Image state
 let texW = 800, texH = 800;
 let srcTex = null, hasImage = false;
-
-// FBO state
-let fboH = null, texH_buf = null;
-let fboV = null, texV_buf = null;
-let fboB1 = null, texB1 = null;  // bloom blur H
-let fboB2 = null, texB2 = null;  // bloom blur V (final bloom)
+let fboH = null, fboV = null;
 
 // ===== Shader sources =====
 const VS = `
@@ -208,100 +390,151 @@ void main(){
   gl_Position = vec4(a_pos, 0.0, 1.0);
 }`;
 
-// 9-tap separable Gaussian
 const FS_BLUR = `
 precision mediump float;
 uniform sampler2D u_tex;
-uniform vec2 u_dir;      // (1/w, 0) or (0, 1/h)
-uniform float u_radius;  // in pixels
+uniform vec2 u_dir;
 varying vec2 v_uv;
 void main(){
-  float w[9];
-  w[0]=0.0625; w[1]=0.1250; w[2]=0.1875; w[3]=0.2500; w[4]=0.3125;
-  w[5]=0.2500; w[6]=0.1875; w[7]=0.1250; w[8]=0.0625;
-  float total = 1.9375; // sum of above
   vec4 col = vec4(0.0);
+  float w[9];
+  w[0]=0.0625; w[1]=0.125; w[2]=0.1875; w[3]=0.25; w[4]=0.3125;
+  w[5]=0.25;   w[6]=0.1875; w[7]=0.125; w[8]=0.0625;
+  float total = 1.9375;
   for(int i=0;i<9;i++){
-    float offset = (float(i) - 4.0) * u_radius;
+    float offset = float(i) - 4.0;
     col += texture2D(u_tex, v_uv + u_dir * offset) * w[i];
   }
   gl_FragColor = col / total;
 }`;
 
-// Bloom extract: keep bright regions, zero out dark
-const FS_BRIGHT = `
-precision mediump float;
-uniform sampler2D u_tex;
-uniform float u_threshold;
-varying vec2 v_uv;
-void main(){
-  vec4 c = texture2D(u_tex, v_uv);
-  float luma = dot(c.rgb, vec3(0.2126, 0.7152, 0.0722));
-  float mask = smoothstep(u_threshold - 0.1, u_threshold + 0.1, luma);
-  gl_FragColor = vec4(c.rgb * mask, c.a);
-}`;
-
-// Final composite: original + haze blur + bloom, with contrast/sat
-const FS_FINAL = `
-precision mediump float;
+const FS_MAIN = `
+precision highp float;
 uniform sampler2D u_src;
 uniform sampler2D u_blurred;
-uniform sampler2D u_bloom;
-uniform float u_haze;       // blur blend amount (= blurRadius/40.0)
-uniform float u_bloomStr;
+uniform float u_levels;
+uniform float u_smooth;
+uniform float u_mapStr;
+uniform vec3 u_stop0;
+uniform vec3 u_stop1;
+uniform vec3 u_stop2;
+uniform vec3 u_stop3;
+uniform float u_numStops;
+uniform float u_blurMix;
+uniform float u_chroma;
 uniform float u_contrast;
-uniform float u_sat;
+uniform float u_grain;
+uniform float u_seed;
+uniform float u_aces;
 varying vec2 v_uv;
+
+vec3 gradMap(float t){
+  float n = u_numStops;
+  // 2 stops: 0..1 between stop0 and stop1
+  // 3 stops: 0..0.5 = stop0→stop1, 0.5..1 = stop1→stop2
+  // 4 stops: thirds
+  if(n < 2.5){
+    return mix(u_stop0, u_stop1, t);
+  } else if(n < 3.5){
+    if(t < 0.5){
+      return mix(u_stop0, u_stop1, t * 2.0);
+    } else {
+      return mix(u_stop1, u_stop2, (t - 0.5) * 2.0);
+    }
+  } else {
+    float third = 1.0 / 3.0;
+    if(t < third){
+      return mix(u_stop0, u_stop1, t / third);
+    } else if(t < 2.0 * third){
+      return mix(u_stop1, u_stop2, (t - third) / third);
+    } else {
+      return mix(u_stop2, u_stop3, (t - 2.0 * third) / third);
+    }
+  }
+}
+
+float quantizeLuma(float luma){
+  if(u_levels < 1.5) return luma;
+  float step = 1.0 / u_levels;
+  float luma_q = floor(luma / step + 0.5) * step;
+  return mix(luma_q, luma, u_smooth);
+}
+
 void main(){
-  vec4 base    = texture2D(u_src,     v_uv);
-  vec4 blurred = texture2D(u_blurred, v_uv);
-  vec4 bloom   = texture2D(u_bloom,   v_uv);
+  vec2 uv = v_uv;
+  vec4 srcCol = texture2D(u_src, uv);
+  vec3 src = srcCol.rgb;
 
-  // Haze blend: mix original toward blurred
-  vec3 col = mix(base.rgb, blurred.rgb, u_haze);
+  // Luma from original
+  float luma = dot(src, vec3(0.2126, 0.7152, 0.0722));
+  float lumaFinal = quantizeLuma(luma);
 
-  // Add bloom
-  col += bloom.rgb * u_bloomStr;
+  // Gradient map on center pixel
+  vec3 gradCol = gradMap(lumaFinal);
+
+  // Mix gradient onto original
+  vec3 col = mix(src, gradCol, u_mapStr);
+
+  // Chromatic aberration: sample r and b channels offset, remap through gradient
+  if(u_chroma > 0.0001){
+    vec2 dir = uv - 0.5;
+    float lumaR = dot(texture2D(u_src, uv + dir * u_chroma).rgb, vec3(0.2126,0.7152,0.0722));
+    float lumaB = dot(texture2D(u_src, uv - dir * u_chroma).rgb, vec3(0.2126,0.7152,0.0722));
+    col.r = gradMap(quantizeLuma(lumaR)).r;
+    col.b = gradMap(quantizeLuma(lumaB)).b;
+  }
+
+  // Micro-blur blend (max 25% to preserve subject sharpness)
+  vec3 blurred = texture2D(u_blurred, uv).rgb;
+  col = mix(col, blurred, u_blurMix * 0.25);
 
   // Contrast
   col = (col - 0.5) * u_contrast + 0.5;
 
-  // Saturation
-  float luma = dot(col, vec3(0.2126, 0.7152, 0.0722));
-  col = mix(vec3(luma), col, u_sat);
+  // ACES filmic tonemap (approximation)
+  if(u_aces > 0.5){
+    col = (col * (2.51 * col + 0.03)) / (col * (2.43 * col + 0.59) + 0.14);
+  }
 
-  gl_FragColor = vec4(clamp(col, 0.0, 1.0), base.a);
+  // Grain (fixed seed = no flicker between preview and export)
+  float noise = fract(sin(dot(uv + u_seed * 0.001, vec2(12.9898, 78.233))) * 43758.5453);
+  col += (noise - 0.5) * u_grain;
+
+  gl_FragColor = vec4(clamp(col, 0.0, 1.0), srcCol.a);
 }`;
 
-// ===== Compile helpers =====
+// ===== Compile =====
 function compileShader(type, src){
   const sh = gl.createShader(type);
   gl.shaderSource(sh, src);
   gl.compileShader(sh);
-  if(!gl.getShaderParameter(sh, gl.COMPILE_STATUS))
-    throw new Error('Shader: ' + gl.getShaderInfoLog(sh));
+  if(!gl.getShaderParameter(sh, gl.COMPILE_STATUS)){
+    const log = gl.getShaderInfoLog(sh);
+    console.error('Shader compile error:', log);
+    throw new Error('Shader: ' + log);
+  }
   return sh;
 }
-function makeProgram(vs, fs){
+function makeProgram(vsSrc, fsSrc){
   const prog = gl.createProgram();
-  gl.attachShader(prog, compileShader(gl.VERTEX_SHADER, vs));
-  gl.attachShader(prog, compileShader(gl.FRAGMENT_SHADER, fs));
+  gl.attachShader(prog, compileShader(gl.VERTEX_SHADER, vsSrc));
+  gl.attachShader(prog, compileShader(gl.FRAGMENT_SHADER, fsSrc));
   gl.linkProgram(prog);
-  if(!gl.getProgramParameter(prog, gl.LINK_STATUS))
-    throw new Error('Link: ' + gl.getProgramInfoLog(prog));
+  if(!gl.getProgramParameter(prog, gl.LINK_STATUS)){
+    const log = gl.getProgramInfoLog(prog);
+    console.error('Program link error:', log);
+    throw new Error('Link: ' + log);
+  }
   return prog;
 }
 
-const progBlur   = makeProgram(VS, FS_BLUR);
-const progBright = makeProgram(VS, FS_BRIGHT);
-const progFinal  = makeProgram(VS, FS_FINAL);
+const progBlur = makeProgram(VS, FS_BLUR);
+const progMain = makeProgram(VS, FS_MAIN);
 
-// Full-screen quad buffer
+// Full-screen quad
 const quad = gl.createBuffer();
 gl.bindBuffer(gl.ARRAY_BUFFER, quad);
-gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
-  -1,-1,  1,-1,  -1,1,  1,1
-]), gl.STATIC_DRAW);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
 
 function bindQuad(prog){
   gl.bindBuffer(gl.ARRAY_BUFFER, quad);
@@ -327,31 +560,68 @@ function makeFBO(w, h){
 }
 
 function resizeFBOs(w, h){
-  // Destroy old
-  [fboH, fboV, fboB1, fboB2].forEach(f=>{ if(f){ gl.deleteFramebuffer(f.fbo); gl.deleteTexture(f.tex); }});
-  fboH  = makeFBO(w, h); texH_buf = fboH.tex;
-  fboV  = makeFBO(w, h); texV_buf = fboV.tex;
-  fboB1 = makeFBO(w, h); texB1 = fboB1.tex;
-  fboB2 = makeFBO(w, h); texB2 = fboB2.tex;
+  if(fboH){ gl.deleteFramebuffer(fboH.fbo); gl.deleteTexture(fboH.tex); }
+  if(fboV){ gl.deleteFramebuffer(fboV.fbo); gl.deleteTexture(fboV.tex); }
+  fboH = makeFBO(w, h);
+  fboV = makeFBO(w, h);
 }
 
-// ===== Draw helpers =====
-function drawToFBO(fbo, prog, uniforms){
-  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
-  gl.viewport(0, 0, texW, texH);
-  gl.useProgram(prog);
-  bindQuad(prog);
-  uniforms(prog);
-  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+// ===== Color helpers =====
+function hexToVec3(hex){
+  const r = parseInt(hex.slice(1,3),16)/255;
+  const g = parseInt(hex.slice(3,5),16)/255;
+  const b = parseInt(hex.slice(5,7),16)/255;
+  return [r,g,b];
+}
+function hslToHex(h,s,l){
+  s/=100; l/=100;
+  const a=s*Math.min(l,1-l);
+  const f=n=>{ const k=(n+h/30)%12; const c=l-a*Math.max(Math.min(k-3,9-k,1),-1);
+    return Math.round(255*c).toString(16).padStart(2,'0'); };
+  return '#'+f(0)+f(8)+f(4);
 }
 
-function bindTex(prog, name, unit, tex){
-  gl.activeTexture(gl.TEXTURE0 + unit);
-  gl.bindTexture(gl.TEXTURE_2D, tex);
-  gl.uniform1i(gl.getUniformLocation(prog, name), unit);
+// ===== Current stops state =====
+let stops = ['#1a2a55','#6f9fd8','#f4f8ff','#f4f8ff'];
+let numStops = 3;
+
+function readStopsFromUI(){
+  const n = parseInt(document.getElementById('sel-numstops').value);
+  numStops = n;
+  stops = [];
+  for(let i=0;i<4;i++){
+    stops.push(document.getElementById('stop'+i).value || '#000000');
+  }
+  updateGradPreview();
 }
 
-// ===== Main render =====
+function setStopsToUI(arr){
+  numStops = arr.length;
+  document.getElementById('sel-numstops').value = String(numStops);
+  const filled = [...arr];
+  while(filled.length < 4) filled.push(arr[arr.length-1]);
+  stops = filled;
+  for(let i=0;i<4;i++){
+    document.getElementById('stop'+i).value = filled[i];
+  }
+  updateStopVisibility();
+  updateGradPreview();
+}
+
+function updateStopVisibility(){
+  const n = numStops;
+  document.getElementById('stop-row1').style.display = n >= 2 ? '' : 'none';
+  document.getElementById('stop-row2').style.display = n >= 3 ? '' : 'none';
+  document.getElementById('stop-row3').style.display = n >= 4 ? '' : 'none';
+}
+
+function updateGradPreview(){
+  const arr = stops.slice(0, numStops);
+  const stops_css = arr.map((c,i)=>`${c} ${Math.round(i/(arr.length-1)*100)}%`).join(', ');
+  document.getElementById('grad-preview').style.background = `linear-gradient(to right, ${stops_css})`;
+}
+
+// ===== Render =====
 let rafPending = false;
 function scheduleRender(){
   if(!hasImage) return;
@@ -360,69 +630,83 @@ function scheduleRender(){
   requestAnimationFrame(doRender);
 }
 
+function setUniform1f(prog, name, val){
+  gl.uniform1f(gl.getUniformLocation(prog, name), val);
+}
+function setUniform2f(prog, name, x, y){
+  gl.uniform2f(gl.getUniformLocation(prog, name), x, y);
+}
+function setUniform3f(prog, name, arr){
+  gl.uniform3f(gl.getUniformLocation(prog, name), arr[0], arr[1], arr[2]);
+}
+function bindTex(prog, name, unit, tex){
+  gl.activeTexture(gl.TEXTURE0 + unit);
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.uniform1i(gl.getUniformLocation(prog, name), unit);
+}
+
 function doRender(){
   rafPending = false;
   if(!hasImage) return;
 
-  const blurR    = parseFloat(document.getElementById('sl-blur').value);
-  const bloomStr = parseFloat(document.getElementById('sl-bloom').value) / 100;
-  const thresh   = parseFloat(document.getElementById('sl-thresh').value) / 100;
+  const blurMix  = parseFloat(document.getElementById('sl-blur').value) / 100;
   const contrast = parseFloat(document.getElementById('sl-contrast').value) / 100;
-  const sat      = parseFloat(document.getElementById('sl-sat').value) / 100;
+  const grain    = parseFloat(document.getElementById('sl-grain').value) / 100;
+  const chroma   = parseFloat(document.getElementById('sl-chroma').value) / 1000;
+  const levels   = parseFloat(document.getElementById('sl-levels').value);
+  const smooth   = parseFloat(document.getElementById('sl-smooth').value) / 100;
+  const mapStr   = parseFloat(document.getElementById('sl-mapstr').value) / 100;
+  const aces     = document.getElementById('ck-aces').checked ? 1.0 : 0.0;
 
-  const rNormX = blurR / texW;
-  const rNormY = blurR / texH;
+  // Blur radius = blurMix * 0.5% of long edge
+  const blurPx = blurMix * Math.max(texW, texH) * 0.005;
 
-  // 1. Blur H: srcTex → fboH
-  drawToFBO(fboH.fbo, progBlur, prog=>{
-    bindTex(prog, 'u_tex', 0, srcTex);
-    gl.uniform2f(gl.getUniformLocation(prog, 'u_dir'), rNormX, 0.0);
-    gl.uniform1f(gl.getUniformLocation(prog, 'u_radius'), 1.0);
-  });
+  // Pass 1: Micro-blur H
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fboH.fbo);
+  gl.viewport(0, 0, texW, texH);
+  gl.useProgram(progBlur);
+  bindQuad(progBlur);
+  bindTex(progBlur, 'u_tex', 0, srcTex);
+  setUniform2f(progBlur, 'u_dir', blurPx / texW, 0.0);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
-  // 2. Blur V: fboH.tex → fboV
-  drawToFBO(fboV.fbo, progBlur, prog=>{
-    bindTex(prog, 'u_tex', 0, fboH.tex);
-    gl.uniform2f(gl.getUniformLocation(prog, 'u_dir'), 0.0, rNormY);
-    gl.uniform1f(gl.getUniformLocation(prog, 'u_radius'), 1.0);
-  });
+  // Pass 1b: Micro-blur V
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fboV.fbo);
+  gl.viewport(0, 0, texW, texH);
+  gl.useProgram(progBlur);
+  bindQuad(progBlur);
+  bindTex(progBlur, 'u_tex', 0, fboH.tex);
+  setUniform2f(progBlur, 'u_dir', 0.0, blurPx / texH);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
-  // 3. Bloom extract: fboV.tex → fboB1 (bright regions only)
-  drawToFBO(fboB1.fbo, progBright, prog=>{
-    bindTex(prog, 'u_tex', 0, fboV.tex);
-    gl.uniform1f(gl.getUniformLocation(prog, 'u_threshold'), thresh);
-  });
-
-  // 4. Bloom blur H: fboB1 → fboB2
-  drawToFBO(fboB2.fbo, progBlur, prog=>{
-    bindTex(prog, 'u_tex', 0, fboB1.tex);
-    gl.uniform2f(gl.getUniformLocation(prog, 'u_dir'), 1.0/texW, 0.0);
-    gl.uniform1f(gl.getUniformLocation(prog, 'u_radius'), 1.0);
-  });
-
-  // 5. Bloom blur V: fboB2 → fboB1 (reuse)
-  drawToFBO(fboB1.fbo, progBlur, prog=>{
-    bindTex(prog, 'u_tex', 0, fboB2.tex);
-    gl.uniform2f(gl.getUniformLocation(prog, 'u_dir'), 0.0, 1.0/texH);
-    gl.uniform1f(gl.getUniformLocation(prog, 'u_radius'), 1.0);
-  });
-
-  // 6. Final composite → screen
+  // Pass 2: Main effect → screen
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   gl.viewport(0, 0, texW, texH);
-  gl.useProgram(progFinal);
-  bindQuad(progFinal);
-  bindTex(progFinal, 'u_src',     0, srcTex);
-  bindTex(progFinal, 'u_blurred', 1, fboV.tex);
-  bindTex(progFinal, 'u_bloom',   2, fboB1.tex);
-  gl.uniform1f(gl.getUniformLocation(progFinal, 'u_haze'),     Math.min(blurR / 40.0, 1.0));
-  gl.uniform1f(gl.getUniformLocation(progFinal, 'u_bloomStr'), bloomStr);
-  gl.uniform1f(gl.getUniformLocation(progFinal, 'u_contrast'), contrast);
-  gl.uniform1f(gl.getUniformLocation(progFinal, 'u_sat'),      sat);
+  gl.useProgram(progMain);
+  bindQuad(progMain);
+
+  bindTex(progMain, 'u_src',     0, srcTex);
+  bindTex(progMain, 'u_blurred', 1, fboV.tex);
+
+  setUniform1f(progMain, 'u_levels',   levels);
+  setUniform1f(progMain, 'u_smooth',   smooth);
+  setUniform1f(progMain, 'u_mapStr',   mapStr);
+  setUniform3f(progMain, 'u_stop0',    hexToVec3(stops[0]));
+  setUniform3f(progMain, 'u_stop1',    hexToVec3(stops[1]));
+  setUniform3f(progMain, 'u_stop2',    hexToVec3(stops[2]));
+  setUniform3f(progMain, 'u_stop3',    hexToVec3(stops[3]));
+  setUniform1f(progMain, 'u_numStops', numStops);
+  setUniform1f(progMain, 'u_blurMix',  blurMix);
+  setUniform1f(progMain, 'u_chroma',   chroma);
+  setUniform1f(progMain, 'u_contrast', contrast);
+  setUniform1f(progMain, 'u_grain',    grain);
+  setUniform1f(progMain, 'u_seed',     42.0);
+  setUniform1f(progMain, 'u_aces',     aces);
+
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 }
 
-// ===== Upload image =====
+// ===== Load image =====
 function loadImage(file){
   const img = new Image();
   img.onload = ()=>{
@@ -431,7 +715,6 @@ function loadImage(file){
     canvas.width  = texW;
     canvas.height = texH;
 
-    // Create or update srcTex
     if(srcTex) gl.deleteTexture(srcTex);
     srcTex = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, srcTex);
@@ -452,15 +735,11 @@ function loadImage(file){
   img.src = URL.createObjectURL(file);
 }
 
-document.getElementById('btn-upload').addEventListener('click',()=>{
-  document.getElementById('file-input').click();
-});
+document.getElementById('btn-upload').addEventListener('click',()=>document.getElementById('file-input').click());
 document.getElementById('file-input').addEventListener('change', e=>{
   if(e.target.files[0]) loadImage(e.target.files[0]);
-  e.target.value = '';
+  e.target.value='';
 });
-
-// Drag & drop on preview
 canvas.addEventListener('dragover', e=>e.preventDefault());
 canvas.addEventListener('drop', e=>{
   e.preventDefault();
@@ -468,38 +747,109 @@ canvas.addEventListener('drop', e=>{
   if(f && f.type.startsWith('image/')) loadImage(f);
 });
 
-// ===== fitCanvas (same pattern as shape.html) =====
+// ===== fitCanvas =====
 function fitCanvas(){
   const pad = 16;
-  const maxW = preview.clientWidth  - pad * 2;
-  const maxH = preview.clientHeight - pad * 2;
-  if(maxW <= 0 || maxH <= 0) return;
-  const scale = Math.min(maxW / texW, maxH / texH);
-  wrap.style.width  = Math.round(texW * scale) + 'px';
-  wrap.style.height = Math.round(texH * scale) + 'px';
+  const maxW = preview.clientWidth  - pad*2;
+  const maxH = preview.clientHeight - pad*2;
+  if(maxW<=0 || maxH<=0) return;
+  const scale = Math.min(maxW/texW, maxH/texH);
+  wrap.style.width  = Math.round(texW*scale)+'px';
+  wrap.style.height = Math.round(texH*scale)+'px';
 }
 window.addEventListener('resize', fitCanvas);
 fitCanvas();
+
+// ===== Preset loading =====
+function applyPreset(key){
+  const p = PRESETS[key];
+  if(!p) return;
+
+  document.getElementById('sl-blur').value     = Math.round(p.blurMix * 100);
+  document.getElementById('v-blur').textContent = p.blurMix.toFixed(2);
+  document.getElementById('sl-contrast').value  = Math.round(p.contrast * 100);
+  document.getElementById('v-contrast').textContent = p.contrast.toFixed(2);
+  document.getElementById('sl-grain').value     = Math.round(p.grain * 100);
+  document.getElementById('v-grain').textContent = p.grain.toFixed(2);
+  document.getElementById('sl-chroma').value    = Math.round(p.chroma * 1000);
+  document.getElementById('v-chroma').textContent = p.chroma.toFixed(3);
+  document.getElementById('sl-smooth').value    = Math.round(p.smooth * 100);
+  document.getElementById('v-smooth').textContent = p.smooth.toFixed(2);
+  document.getElementById('sl-levels').value    = p.levels;
+  document.getElementById('v-levels').textContent = p.levels === 0 ? 'Off' : p.levels;
+  document.getElementById('sl-mapstr').value    = Math.round(p.mapStr * 100);
+  document.getElementById('v-mapstr').textContent = p.mapStr.toFixed(2);
+  document.getElementById('ck-aces').checked    = p.aces !== false;
+
+  setStopsToUI(p.stops);
+
+  // Show/hide custom gradient editor
+  const isCustom = key === 'custom';
+  document.getElementById('gradient-edit').style.display = isCustom ? 'block' : 'none';
+
+  scheduleRender();
+}
+
+document.getElementById('sel-preset').addEventListener('change', e=>{
+  applyPreset(e.target.value);
+});
 
 // ===== Sliders =====
 function wireSlider(id, valId, fmt){
   const sl = document.getElementById(id);
   const vl = document.getElementById(valId);
-  sl.addEventListener('input', ()=>{
-    vl.textContent = fmt(parseFloat(sl.value));
+  sl.addEventListener('input',()=>{ vl.textContent = fmt(parseFloat(sl.value)); scheduleRender(); });
+}
+wireSlider('sl-blur',     'v-blur',     v => (v/100).toFixed(2));
+wireSlider('sl-contrast', 'v-contrast', v => (v/100).toFixed(2));
+wireSlider('sl-grain',    'v-grain',    v => (v/100).toFixed(2));
+wireSlider('sl-chroma',   'v-chroma',   v => (v/1000).toFixed(3));
+wireSlider('sl-smooth',   'v-smooth',   v => (v/100).toFixed(2));
+wireSlider('sl-levels',   'v-levels',   v => v===0 ? 'Off' : String(v));
+wireSlider('sl-mapstr',   'v-mapstr',   v => (v/100).toFixed(2));
+document.getElementById('ck-aces').addEventListener('change', scheduleRender);
+
+// ===== Custom gradient UI =====
+document.getElementById('sel-numstops').addEventListener('change', ()=>{
+  numStops = parseInt(document.getElementById('sel-numstops').value);
+  updateStopVisibility();
+  readStopsFromUI();
+  scheduleRender();
+});
+['stop0','stop1','stop2','stop3'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', ()=>{
+    readStopsFromUI();
     scheduleRender();
   });
+});
+
+// Random gradient
+function randomStops(n){
+  const h = Math.random()*360;
+  return Array.from({length:n},(_,i)=>{
+    const hue = (h + i*(280/n) + Math.random()*25) % 360;
+    const sat = 55 + Math.random()*35;
+    const lig = 15 + i*(60/n) + Math.random()*8;
+    return hslToHex(hue, sat, lig);
+  });
 }
-wireSlider('sl-blur',     'v-blur',     v => v.toFixed(0));
-wireSlider('sl-bloom',    'v-bloom',    v => (v/100).toFixed(2));
-wireSlider('sl-thresh',   'v-thresh',   v => (v/100).toFixed(2));
-wireSlider('sl-contrast', 'v-contrast', v => (v/100).toFixed(2));
-wireSlider('sl-sat',      'v-sat',      v => (v/100).toFixed(2));
+document.getElementById('btn-random').addEventListener('click',()=>{
+  const n = numStops;
+  const arr = randomStops(n);
+  setStopsToUI(arr);
+  scheduleRender();
+});
+
+// ===== Reset to defaults =====
+document.getElementById('btn-reset').addEventListener('click',()=>{
+  const key = document.getElementById('sel-preset').value;
+  applyPreset(key);
+});
 
 // ===== Export =====
 function doExport(filename){
-  if(!hasImage){ return; }
-  doRender(); // ensure latest frame
+  if(!hasImage) return;
+  doRender();
   canvas.toBlob(blob=>{
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -510,6 +860,10 @@ function doExport(filename){
 }
 document.getElementById('btn-export-free').addEventListener('click',()=>doExport('haze-free.png'));
 document.getElementById('btn-export-hd').addEventListener('click',()=>doExport('haze-hd.png'));
+
+// ===== Init =====
+applyPreset('dreamy');
+applyLang();
 
 })();
 </script>
