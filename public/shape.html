@@ -30,6 +30,14 @@
   .check-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
   .check-row:last-child{margin-bottom:0}
 
+  /* 覆盖 styles.css 的 canvas-wrap/canvas 限制，让画布铺满预览区 */
+  #canvas-wrap{max-width:none !important;max-height:none !important}
+  #main-canvas{
+    width:100% !important;height:100% !important;
+    max-width:none !important;max-height:none !important;
+  }
+  .preview{padding:16px}
+
   /* textarea */
   #txt-input{
     width:100%;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;
@@ -285,6 +293,17 @@ const hint   = document.getElementById('canvas-hint');
 let aspectW = 1, aspectH = 1;
 let canvasW = LOGICAL, canvasH = LOGICAL;
 
+function fitCanvas(){
+  const preview = wrap.parentElement;
+  const pad = 16;
+  const maxW = preview.clientWidth  - pad * 2;
+  const maxH = preview.clientHeight - pad * 2;
+  if(maxW <= 0 || maxH <= 0) return;
+  const scale = Math.min(maxW / canvasW, maxH / canvasH);
+  wrap.style.width  = Math.round(canvasW * scale) + 'px';
+  wrap.style.height = Math.round(canvasH * scale) + 'px';
+}
+
 function setAspect(ratio){
   const [w,h] = ratio.split(':').map(Number);
   aspectW = w; aspectH = h;
@@ -292,12 +311,7 @@ function setAspect(ratio){
   canvasH = Math.round(LOGICAL * h / w);
   canvas.width  = canvasW;
   canvas.height = canvasH;
-  // let CSS scale it to fit the preview area
-  const maxW = wrap.parentElement.clientWidth  - 60;
-  const maxH = wrap.parentElement.clientHeight - 60;
-  const scale = Math.min(maxW / canvasW, maxH / canvasH, 1);
-  wrap.style.width  = Math.round(canvasW * scale) + 'px';
-  wrap.style.height = Math.round(canvasH * scale) + 'px';
+  fitCanvas();
   scheduleRender();
 }
 
@@ -652,10 +666,8 @@ applyShapeLang();
 setAspect('1:1');
 render();
 
-// Resize: re-fit canvas when window resizes
-window.addEventListener('resize', ()=>{ setAspect(
-  document.querySelector('.asp-btn.active')?.dataset.asp || '1:1'
-); });
+// Resize: re-fit canvas display size (keeps logical resolution intact)
+window.addEventListener('resize', fitCanvas);
 
 })();
 </script>
