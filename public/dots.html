@@ -212,16 +212,16 @@
         <div class="field">
           <div class="row">
             <label data-i18n="dots_l_cellsize">Cell size</label>
-            <span class="val" id="v-cellsize">16 px</span>
+            <span class="val" id="v-cellsize">14 px</span>
           </div>
-          <input type="range" id="sl-cellsize" min="4" max="80" value="16" step="1">
+          <input type="range" id="sl-cellsize" min="4" max="80" value="14" step="1">
         </div>
         <div class="field">
           <div class="row">
             <label data-i18n="dots_l_density">Dot density</label>
-            <span class="val" id="v-density">80%</span>
+            <span class="val" id="v-density">90%</span>
           </div>
-          <input type="range" id="sl-density" min="10" max="100" value="80">
+          <input type="range" id="sl-density" min="10" max="100" value="90">
         </div>
         <div class="field">
           <div class="row">
@@ -233,16 +233,16 @@
         <div class="field">
           <div class="row">
             <label data-i18n="dots_l_whitethresh">White threshold</label>
-            <span class="val" id="v-whitethresh">90</span>
+            <span class="val" id="v-whitethresh">50</span>
           </div>
-          <input type="range" id="sl-whitethresh" min="0" max="100" value="90">
+          <input type="range" id="sl-whitethresh" min="0" max="100" value="50">
         </div>
         <div class="field">
           <div class="row">
             <label data-i18n="dots_l_contrast">Gray contrast</label>
-            <span class="val" id="v-contrast">100</span>
+            <span class="val" id="v-contrast">130</span>
           </div>
-          <input type="range" id="sl-contrast" min="50" max="300" value="100">
+          <input type="range" id="sl-contrast" min="50" max="300" value="130">
         </div>
         <label class="check-row">
           <span data-i18n="dots_l_graymap">Gray mapping</span>
@@ -263,9 +263,9 @@
         <div class="field">
           <div class="row">
             <label data-i18n="dots_l_spread">Spread density</label>
-            <span class="val" id="v-spread">60%</span>
+            <span class="val" id="v-spread">70%</span>
           </div>
-          <input type="range" id="sl-spread" min="10" max="100" value="60">
+          <input type="range" id="sl-spread" min="10" max="100" value="70">
         </div>
         <div class="field">
           <div class="row">
@@ -288,9 +288,9 @@
         <div class="field">
           <div class="row">
             <label data-i18n="dots_l_merge">Merge strength</label>
-            <span class="val" id="v-merge">65%</span>
+            <span class="val" id="v-merge">70%</span>
           </div>
-          <input type="range" id="sl-merge" min="0" max="100" value="65">
+          <input type="range" id="sl-merge" min="0" max="100" value="70">
         </div>
       </div>
 
@@ -570,13 +570,22 @@ function getParams(){
 }
 
 function buildCells(p){
-  // Draw src to offscreen canvas to sample pixels
+  // Sample at capped resolution for large images
+  const MAX_SIDE = 1200;
+  let sW = srcW, sH = srcH;
+  if(Math.max(sW, sH) > MAX_SIDE){
+    const r = MAX_SIDE / Math.max(sW, sH);
+    sW = Math.round(sW * r);
+    sH = Math.round(sH * r);
+  }
   const off = document.createElement('canvas');
-  off.width = srcW; off.height = srcH;
+  off.width = sW; off.height = sH;
   const oc = off.getContext('2d');
-  oc.drawImage(srcImage, 0, 0);
-  const imgData = oc.getImageData(0,0,srcW,srcH).data;
+  oc.drawImage(srcImage, 0, 0, sW, sH);
+  const imgData = oc.getImageData(0, 0, sW, sH).data;
 
+  // Map cell size to sample resolution
+  const scaleX = sW / srcW, scaleY = sH / srcH;
   const cs = p.cellSize;
   const cols = Math.ceil(srcW / cs);
   const rows = Math.ceil(srcH / cs);
@@ -585,25 +594,28 @@ function buildCells(p){
   for(let r=0;r<rows;r++){
     for(let c=0;c<cols;c++){
       let rS=0,gS=0,bS=0,n=0;
-      const x0=c*cs, y0=r*cs;
-      for(let dy=0;dy<cs;dy++){
-        const py = y0+dy; if(py>=srcH) break;
-        for(let dx=0;dx<cs;dx++){
-          const px = x0+dx; if(px>=srcW) break;
-          const idx=(py*srcW+px)*4;
+      const x0=Math.round(c*cs*scaleX), y0=Math.round(r*cs*scaleY);
+      const x1=Math.round((c+1)*cs*scaleX), y1=Math.round((r+1)*cs*scaleY);
+      for(let py=y0;py<y1&&py<sH;py++){
+        for(let px=x0;px<x1&&px<sW;px++){
+          const idx=(py*sW+px)*4;
           rS+=imgData[idx]; gS+=imgData[idx+1]; bS+=imgData[idx+2]; n++;
         }
       }
       if(!n) continue;
       const avgR=rS/n, avgG=gS/n, avgB=bS/n;
       let luma = 0.299*avgR/255 + 0.587*avgG/255 + 0.114*avgB/255;
-      if(p.invert) luma = 1-luma;
-      // Contrast
-      luma = Math.min(1, Math.max(0, (luma-0.5)*p.contrast+0.5));
-      // Gray mapping
-      if(p.grayMap) luma = luma > p.mapThresh ? 1.0 : 0.0;
+      // 1. Contrast
+      luma = Math.min(1, Math.max(0, (luma - 0.5) * p.contrast + 0.5));
+      // 2. Gray mapping (binary threshold)
+      if(p.grayMap) luma = luma < p.mapThresh ? 0.0 : 1.0;
+      // 3. Invert
+      if(p.invert) luma = 1 - luma;
+      // 4. Skip bright areas (white threshold: skip if luma > thresh)
       const skip = luma > p.whiteThresh;
-      result.push({c, r, luma, skip, avgR, avgG, avgB});
+      // 5. Draw size: darker pixel = bigger dot (1 - luma)
+      const drawSize = 1 - luma;
+      result.push({c, r, luma, skip, drawSize, avgR, avgG, avgB});
     }
   }
   return {cells:result, cols, rows, cs};
@@ -663,7 +675,7 @@ function renderClassic(targetCtx, scale, p, transparent){
     const offsetX = (r%2===0 ? 0 : p.rowOffset) * cs;
     const cx = Math.round((c*cs + cs/2 + offsetX)*scale);
     const cy = Math.round((r*cs + cs/2)*scale);
-    const radius = Math.max(0.5, (cs/2) * luma * p.density * scale);
+    const radius = Math.max(0.5, (cs/2) * cell.drawSize * p.density * scale);
 
     // Color
     let color;
@@ -717,25 +729,29 @@ function renderLiquid(targetCtx, scale, p, transparent){
   if(!cells) cells = buildCells(p);
   const {cells:cl, cs} = cells;
   const blendRgb = hexToRgb(p.blendColor);
+  const qs = scale * qScale;
 
-  // 1. Offscreen at quality resolution
+  // 1. off canvas: black background + circles
   const off = document.createElement('canvas');
   off.width = qW; off.height = qH;
   const oc = off.getContext('2d');
-
   oc.fillStyle = '#000000';
   oc.fillRect(0,0,qW,qH);
 
-  const qs = scale * qScale;
   cl.forEach(cell=>{
     if(cell.skip) return;
-    const {c, r, luma} = cell;
+    const {c, r, drawSize} = cell;
     const offsetX = (r%2===0 ? 0 : p.rowOffset) * cs;
     const baseCx = (c*cs + cs/2 + offsetX)*qs;
     const baseCy = (r*cs + cs/2)*qs;
-    const baseR  = (cs/2) * luma * p.dotRatio * qs;
+    const baseR  = (cs/2) * drawSize * p.dotRatio * qs;
 
-    // Scatter points per cell based on spread density
+    if(p.useOrig){
+      oc.fillStyle = `rgb(${cell.avgR|0},${cell.avgG|0},${cell.avgB|0})`;
+    } else {
+      oc.fillStyle = '#ffffff';
+    }
+
     const nPts = Math.max(1, Math.round(p.spread * 4));
     for(let i=0;i<nPts;i++){
       const angle = (i/nPts)*Math.PI*2 + (c*7+r*13)*0.3;
@@ -746,44 +762,44 @@ function renderLiquid(targetCtx, scale, p, transparent){
       if(pr < 0.5) continue;
       oc.beginPath();
       oc.arc(px, py, pr, 0, Math.PI*2);
-      oc.fillStyle = '#ffffff';
       oc.fill();
     }
   });
 
-  // 2. Gooey filter: blur + contrast threshold
+  // 2. Gooey filter: draw off→blurred canvas WITH filter applied at draw time
   const blurR = Math.max(1, cs * p.merge * 0.45 * qScale * scale);
-  const contrastY = 8 + p.merge * 22;
-  oc.filter = `blur(${blurR}px) contrast(${contrastY})`;
-  // Re-draw blurred version
-  const tmp = document.createElement('canvas');
-  tmp.width=qW; tmp.height=qH;
-  tmp.getContext('2d').drawImage(off,0,0);
-  oc.clearRect(0,0,qW,qH);
-  oc.drawImage(tmp,0,0);
-  oc.filter='none';
+  const contrastY = (8 + p.merge * 22).toFixed(1);
+  const blurred = document.createElement('canvas');
+  blurred.width = qW; blurred.height = qH;
+  const bc = blurred.getContext('2d');
+  bc.filter = `blur(${blurR}px) contrast(${contrastY})`;
+  bc.drawImage(off, 0, 0);
+  bc.filter = 'none';
 
-  // 3. Colorize: use amoeba as alpha mask, paint color
-  const maskData = oc.getImageData(0,0,qW,qH);
-  const colored  = oc.createImageData(qW,qH);
-
+  // 3. Colorize pass: read blurred pixels, threshold alpha, apply blend color
   const alpha = p.opacity/255;
-  for(let i=0;i<maskData.data.length;i+=4){
-    const lum = maskData.data[i]/255; // white = filled
-    let R=blendRgb[0], G=blendRgb[1], B=blendRgb[2];
-    if(p.useOrig){
-      // sample from source at corresponding pixel
-      const qx = (i/4) % qW;
-      const qy = Math.floor((i/4) / qW);
-      const sx = Math.round(qx / qs);
-      const sy = Math.round(qy / qs);
+  if(!p.useOrig){
+    // single color mode: rebuild image with blend color
+    const maskData = bc.getImageData(0,0,qW,qH);
+    const colored  = bc.createImageData(qW,qH);
+    const [R,G,B] = blendRgb;
+    for(let i=0;i<maskData.data.length;i+=4){
+      const lum = maskData.data[i]/255;
+      colored.data[i]   = R;
+      colored.data[i+1] = G;
+      colored.data[i+2] = B;
+      colored.data[i+3] = lum > 0.5 ? Math.round(255*alpha) : 0;
     }
-    colored.data[i]   = R;
-    colored.data[i+1] = G;
-    colored.data[i+2] = B;
-    colored.data[i+3] = Math.round(lum > 0.5 ? 255*alpha : 0);
+    bc.putImageData(colored, 0, 0);
+  } else {
+    // useOrig: threshold alpha only, keep RGB from blurred colored circles
+    const maskData = bc.getImageData(0,0,qW,qH);
+    for(let i=0;i<maskData.data.length;i+=4){
+      const lum = (maskData.data[i]*0.299 + maskData.data[i+1]*0.587 + maskData.data[i+2]*0.114)/255;
+      maskData.data[i+3] = lum > 0.3 ? Math.round(255*alpha) : 0;
+    }
+    bc.putImageData(maskData, 0, 0);
   }
-  oc.putImageData(colored, 0, 0);
 
   // 4. Composite to target
   if(transparent){
@@ -800,7 +816,7 @@ function renderLiquid(targetCtx, scale, p, transparent){
   applyTexture(targetCtx, W, H, p);
   targetCtx.save();
   targetCtx.globalCompositeOperation = p.blendMode;
-  targetCtx.drawImage(off, 0, 0, W, H);
+  targetCtx.drawImage(blurred, 0, 0, W, H);
   targetCtx.restore();
 }
 
@@ -893,7 +909,7 @@ function buildSVG(p){
     const offsetX=(r%2===0?0:p.rowOffset)*cs;
     const cx=(c*cs+cs/2+offsetX);
     const cy=(r*cs+cs/2);
-    const radius=Math.max(0.5,(cs/2)*luma*p.density);
+    const radius=Math.max(0.5,(cs/2)*cell.drawSize*p.density);
     let R=blendRgb[0],G=blendRgb[1],B=blendRgb[2];
     if(p.useOrig){ R=cell.avgR|0; G=cell.avgG|0; B=cell.avgB|0; }
     const fill=`rgb(${R},${G},${B})`;
